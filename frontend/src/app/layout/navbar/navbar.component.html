@@ -1,0 +1,45 @@
+<nav class="navbar">
+  <div class="navbar__brand">
+    <i class="ti ti-link"></i>
+    <span>VCM FCI · UCM</span>
+  </div>
+
+  <div class="navbar__nav">
+    <a routerLink="/dashboard" routerLinkActive="navbar__link--active"
+       [routerLinkActiveOptions]="{ exact: true }" class="navbar__link">
+      Dashboard
+    </a>
+    <a routerLink="/dashboard/facultades" routerLinkActive="navbar__link--active" class="navbar__link">
+      Facultades
+    </a>
+    <a routerLink="/dashboard/carreras" routerLinkActive="navbar__link--active" class="navbar__link">
+      Carreras
+    </a>
+    <a *ngIf="showUsuarios" routerLink="/dashboard/usuarios" routerLinkActive="navbar__link--active" class="navbar__link">
+      Usuarios
+    </a>
+    <a *ngIf="showAlumnosVoluntarios" routerLink="/dashboard/alumnos-voluntarios" routerLinkActive="navbar__link--active" class="navbar__link">
+      Alumnos Voluntarios
+    </a>
+    <a routerLink="/dashboard/solicitudes" routerLinkActive="navbar__link--active" class="navbar__link">
+      Solicitudes
+    </a>
+    <a *ngIf="showPlanteamientos" routerLink="/dashboard/planteamientos" routerLinkActive="navbar__link--active" class="navbar__link">
+      Planteamientos
+    </a>
+    <a *ngIf="showProyectos" routerLink="/dashboard/proyectos" routerLinkActive="navbar__link--active" class="navbar__link">
+      Proyectos
+    </a>
+    <a *ngIf="showReportes" routerLink="/dashboard/reportes" routerLinkActive="navbar__link--active" class="navbar__link">
+      Reportes
+    </a>
+  </div>
+
+  <div class="navbar__actions">
+    <span class="navbar__user">{{ currentUser?.nombres }} {{ currentUser?.apellidos }}</span>
+    <button class="navbar__logout" (click)="logout()">
+      <i class="ti ti-logout"></i>
+      Salir
+    </button>
+  </div>
+</nav>

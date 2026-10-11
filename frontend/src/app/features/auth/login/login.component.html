@@ -1,0 +1,123 @@
+<p-toast position="top-right" />
+
+<div class="login-container">
+  <!-- Panel izquierdo -->
+  <div class="login-left">
+    <div class="login-left__header">
+      <div class="login-left__logo">
+        <i class="ti ti-link"></i>
+      </div>
+      <span class="login-left__brand">VCM FCI · UCM</span>
+    </div>
+
+    <h1 class="login-left__title">
+      Sistema de gestión de vinculación con el medio
+    </h1>
+    <!-- CORRECCIÓN 2: texto descriptivo actualizado, font-size 14px -->
+    <p class="login-left__subtitle">
+      Conecta a la Facultad de Ciencias de la Ingeniería
+      con las comunidades de la región del Maule.
+    </p>
+
+    <!-- CORRECCIÓN 1: íconos específicos por feature -->
+    <ul class="login-left__features">
+      <li class="login-left__feature">
+        <div class="login-left__feature-icon">
+          <i class="ti ti-file-text"></i>
+        </div>
+        <span>Gestiona solicitudes de proyectos comunitarios</span>
+      </li>
+      <li class="login-left__feature">
+        <div class="login-left__feature-icon">
+          <i class="ti ti-users"></i>
+        </div>
+        <span>Conecta docentes, estudiantes y comunidad</span>
+      </li>
+      <li class="login-left__feature">
+        <div class="login-left__feature-icon">
+          <i class="ti ti-chart-bar"></i>
+        </div>
+        <span>Genera reportes para acreditación CNA-Chile</span>
+      </li>
+    </ul>
+
+    <p class="login-left__footer">Universidad Católica del Maule · 2026</p>
+  </div>
+
+  <!-- Panel derecho -->
+  <div class="login-right">
+    <div class="login-form">
+      <h2 class="login-form__title">Iniciar sesión</h2>
+      <p class="login-form__subtitle">
+        Ingresa tus credenciales para acceder al sistema.
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+        <!-- Email -->
+        <div class="form-field">
+          <label class="form-field__label">Correo electrónico</label>
+          <div class="input-group">
+            <i class="ti ti-mail input-group__icon"></i>
+            <input
+              pInputText
+              type="email"
+              formControlName="email"
+              placeholder="nombre@ucm.cl"
+              class="input-group__input"
+              [class.input-group__input--error]="email.invalid && email.touched"
+            />
+          </div>
+          @if (email.touched && email.hasError('required')) {
+            <span class="form-field__error">El correo es obligatorio.</span>
+          } @else if (email.touched && email.hasError('email')) {
+            <span class="form-field__error">Ingresa un correo válido.</span>
+          }
+        </div>
+
+        <!-- Contraseña -->
+        <div class="form-field">
+          <label class="form-field__label">Contraseña</label>
+          <div class="input-group">
+            <i class="ti ti-lock input-group__icon"></i>
+            <input
+              pInputText
+              [type]="showPassword ? 'text' : 'password'"
+              formControlName="password"
+              placeholder="••••••••"
+              class="input-group__input"
+              [class.input-group__input--error]="password.invalid && password.touched"
+            />
+            <button type="button" class="input-group__toggle" (click)="togglePassword()">
+              <i class="ti" [class.ti-eye]="!showPassword" [class.ti-eye-off]="showPassword"></i>
+            </button>
+          </div>
+          @if (password.touched && password.hasError('required')) {
+            <span class="form-field__error">La contraseña es obligatoria.</span>
+          } @else if (password.touched && password.hasError('minlength')) {
+            <span class="form-field__error">Mínimo 8 caracteres.</span>
+          }
+        </div>
+
+        <!-- Link olvidé contraseña -->
+        <div class="login-form__forgot">
+          <a routerLink="/forgot-password" class="login-form__link">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <!-- CORRECCIÓN 3: botón nativo para control total de estilos -->
+        <button type="submit" class="btn-submit" [disabled]="loading">
+          @if (loading) {
+            <i class="ti ti-loader-2 btn-submit__spinner"></i>
+          }
+          {{ loading ? 'Iniciando sesión…' : 'Iniciar sesión' }}
+        </button>
+
+        <!-- CORRECCIÓN 4: texto y separador actualizados -->
+        <hr class="login-form__hr" />
+        <p class="login-form__register-text">
+          ¿Eres de la comunidad y no tienes cuenta?
+          <a routerLink="/register" class="login-form__register-link">Regístrate aquí</a>
+        </p>
+      </form>
+    </div>
+  </div>
+</div>

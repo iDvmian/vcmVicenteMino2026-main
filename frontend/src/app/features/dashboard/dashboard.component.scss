@@ -1,0 +1,58 @@
+.dashboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 64px); // descuenta la navbar
+
+  &__welcome {
+    text-align: center;
+    padding: 48px 32px;
+    background: var(--ucm-card);
+    border-radius: 16px;
+    border: 1px solid var(--ucm-borde);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    max-width: 480px;
+    width: 100%;
+  }
+
+  &__icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(27, 61, 140, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+
+    i {
+      font-size: 32px;
+      color: var(--ucm-azul);
+    }
+  }
+
+  &__title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ucm-azul);
+    margin: 0 0 10px;
+  }
+
+  &__subtitle {
+    font-size: 15px;
+    color: var(--ucm-muted);
+    margin: 0 0 20px;
+  }
+
+  &__rol {
+    display: inline-block;
+    background: rgba(41, 171, 226, 0.1);
+    color: var(--ucm-celeste);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+  }
+}

@@ -1,0 +1,370 @@
+<p-toast position="top-right" />
+<p-confirmdialog />
+
+<div class="page">
+  <div class="page__header">
+    <h1 class="page__title">
+      <i class="ti ti-briefcase"></i>
+      Proyectos
+    </h1>
+    <button *ngIf="canCreate" class="btn-primary" (click)="openCreate()">
+      <i class="ti ti-plus"></i>
+      Nuevo proyecto
+    </button>
+  </div>
+
+  <div class="page__filters">
+    <p-select
+      [(ngModel)]="selectedEstado"
+      (ngModelChange)="onFilterChange()"
+      [options]="estadoOptions"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Filtrar por estado"
+      [showClear]="true"
+      [style]="{ 'min-width': '200px' }"
+      appendTo="body"
+    />
+    <button class="btn-secondary" type="button" (click)="clearFilters()">
+      <i class="ti ti-filter-off"></i>
+      Limpiar filtros
+    </button>
+  </div>
+
+  <div class="page__card">
+    <p-table
+      [value]="items"
+      [lazy]="true"
+      [loading]="loading"
+      [paginator]="true"
+      [rows]="rows"
+      [totalRecords]="totalRecords"
+      (onLazyLoad)="onLazyLoad($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords}"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th class="col-proyecto">Proyecto</th>
+          <th class="col-estado">Estado</th>
+          <th class="col-fecha">Fecha Inicio</th>
+          <th class="col-fecha">Fecha Fin</th>
+          <th class="col-alumnos">Nº Alumnos</th>
+          <th *ngIf="showDocenteColumn" class="col-docente">Docente</th>
+          <th class="col-actions">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-proy>
+        <tr>
+          <td class="col-proyecto" [title]="getProyectoTitulo(proy)">
+            {{ getProyectoTitulo(proy) }}
+          </td>
+          <td class="col-estado">
+            <p-tag [value]="proy.estado" [style]="getEstadoStyle(proy.estado)" />
+          </td>
+          <td class="col-fecha">{{ proy.fechaInicio | date: 'dd/MM/yyyy' }}</td>
+          <td class="col-fecha">{{ proy.fechaFin | date: 'dd/MM/yyyy' }}</td>
+          <td class="col-alumnos">{{ getNumAlumnos(proy) }}</td>
+          <td
+            *ngIf="showDocenteColumn"
+            class="col-docente"
+            [title]="getDocenteNombre(proy)"
+          >
+            {{ getDocenteNombre(proy) }}
+          </td>
+          <td class="col-actions">
+            <div class="action-cell">
+              <button class="btn-icon btn-icon--view" (click)="openDetail(proy)" title="Ver">
+                <i class="ti ti-eye"></i>
+              </button>
+              <button
+                *ngIf="canEdit(proy)"
+                class="btn-icon btn-icon--edit"
+                (click)="openEdit(proy)"
+                title="Editar"
+              >
+                <i class="ti ti-edit"></i>
+              </button>
+              <button
+                *ngIf="canEditEstado(proy)"
+                class="btn-icon btn-icon--manage"
+                (click)="openEstado(proy)"
+                title="Cambiar estado"
+              >
+                <i class="ti ti-refresh"></i>
+              </button>
+              <button
+                *ngIf="canEdit(proy)"
+                class="btn-icon btn-icon--delete"
+                (click)="confirmDelete(proy)"
+                title="Eliminar"
+              >
+                <i class="ti ti-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td [attr.colspan]="showDocenteColumn ? 7 : 6">
+            <div class="empty-cell">
+              <i class="ti ti-inbox"></i>
+              Sin proyectos registrados
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- ── Modal crear / editar ── -->
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '620px' }"
+  [header]="editingItem ? 'Editar proyecto' : 'Nuevo proyecto'"
+>
+  <form [formGroup]="form">
+    <div class="form-grid">
+
+      <!-- Planteamiento (dropdown en crear, texto en editar) -->
+      <div class="field field--full">
+        <label class="field__label">
+          Planteamiento <span *ngIf="!editingItem" class="required">*</span>
+        </label>
+        <ng-container *ngIf="!editingItem; else planteamientoDisplay">
+          <p-select
+            formControlName="planteamientoId"
+            [options]="planteamientosDropdown"
+            optionLabel="label"
+            optionValue="id"
+            placeholder="Seleccione un planteamiento aprobado"
+            [style]="{ width: '100%' }"
+            [scrollHeight]="'250px'"
+            appendTo="body"
+            (onChange)="onPlanteamientoChange()"
+          />
+          <small class="field__error" *ngIf="form.get('planteamientoId')?.invalid && form.get('planteamientoId')?.touched">
+            El planteamiento es requerido
+          </small>
+          <small class="field__hint" *ngIf="planteamientosDropdown.length === 0">
+            No hay planteamientos aprobados disponibles sin proyecto.
+          </small>
+        </ng-container>
+        <ng-template #planteamientoDisplay>
+          <div class="field__readonly">
+            {{ getProyectoTitulo(editingItem!) }}
+          </div>
+        </ng-template>
+      </div>
+
+      <!-- Fecha de inicio -->
+      <div class="field">
+        <label class="field__label">Fecha de inicio <span class="required">*</span></label>
+        <input type="date" formControlName="fechaInicio" class="field__input field__date" />
+        <small class="field__error" *ngIf="form.get('fechaInicio')?.invalid && form.get('fechaInicio')?.touched">
+          La fecha de inicio es requerida
+        </small>
+      </div>
+
+      <!-- Fecha de fin -->
+      <div class="field">
+        <label class="field__label">Fecha de fin <span class="required">*</span></label>
+        <input type="date" formControlName="fechaFin" class="field__input field__date" />
+        <small class="field__error" *ngIf="form.get('fechaFin')?.invalid && form.get('fechaFin')?.touched">
+          La fecha de fin es requerida
+        </small>
+        <small class="field__error" *ngIf="form.errors?.['fechaRange'] && form.get('fechaFin')?.touched">
+          La fecha de fin debe ser posterior a la de inicio
+        </small>
+      </div>
+
+      <!-- Alumnos voluntarios -->
+      <div class="field field--full">
+        <label class="field__label">Alumnos voluntarios</label>
+        <p-multiselect
+          formControlName="alumnoIds"
+          [options]="alumnoOptions"
+          optionLabel="label"
+          optionValue="value"
+          [filter]="true"
+          placeholder="Seleccione alumnos voluntarios"
+          emptyMessage="Sin alumnos para esta carrera"
+          [style]="{ width: '100%' }"
+          [showClear]="true"
+          appendTo="body"
+        />
+        <small class="field__hint" *ngIf="!editingItem && form.get('alumnoIds')?.disabled">
+          Seleccione primero un planteamiento para asignar alumnos de su carrera.
+        </small>
+        <small class="field__hint" *ngIf="loadingAlumnos">
+          <i class="ti ti-loader-2"></i> Cargando alumnos…
+        </small>
+      </div>
+
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="dialogVisible = false">Cancelar</button>
+      <button class="btn-save" type="button" (click)="save()" [disabled]="saving">
+        <i class="ti ti-device-floppy"></i>
+        {{ saving ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- ── Modal detalle (Ver) + observaciones ── -->
+<p-dialog
+  [(visible)]="detailVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '680px' }"
+  header="Detalle del proyecto"
+>
+  <div class="detail" *ngIf="detailItem">
+    <div class="detail__grid">
+      <div class="detail__item detail__item--full">
+        <span class="detail__label">Proyecto</span>
+        <span class="detail__value">{{ getProyectoTitulo(detailItem) }}</span>
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Estado</span>
+        <p-tag [value]="detailItem.estado" [style]="getEstadoStyle(detailItem.estado)" />
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Docente</span>
+        <span class="detail__value">{{ getDocenteNombre(detailItem) }}</span>
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Fecha de inicio</span>
+        <span class="detail__value">{{ detailItem.fechaInicio | date: 'dd/MM/yyyy' }}</span>
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Fecha de fin</span>
+        <span class="detail__value">{{ detailItem.fechaFin | date: 'dd/MM/yyyy' }}</span>
+      </div>
+      <div class="detail__item detail__item--full">
+        <span class="detail__label">Alumnos asignados ({{ getNumAlumnos(detailItem) }})</span>
+        <div class="chips" *ngIf="detailItem.alumnos && detailItem.alumnos.length > 0; else sinAlumnos">
+          <span class="chip" *ngFor="let pa of detailItem.alumnos">
+            {{ pa.alumno.nombres }} {{ pa.alumno.apellidos }}
+          </span>
+        </div>
+        <ng-template #sinAlumnos>
+          <span class="detail__value detail__value--muted">Sin alumnos asignados</span>
+        </ng-template>
+      </div>
+    </div>
+
+    <!-- Observaciones -->
+    <div class="obs">
+      <h3 class="obs__title">
+        <i class="ti ti-messages"></i>
+        Observaciones
+      </h3>
+
+      <div class="obs__add" *ngIf="canAddObs">
+        <textarea
+          [(ngModel)]="nuevaObservacion"
+          rows="2"
+          placeholder="Escribe una observación…"
+          class="obs__textarea"
+        ></textarea>
+        <button
+          class="btn-save obs__add-btn"
+          type="button"
+          (click)="addObservacion()"
+          [disabled]="addingObservacion || !nuevaObservacion.trim()"
+        >
+          <i class="ti ti-plus"></i>
+          {{ addingObservacion ? 'Agregando…' : 'Agregar' }}
+        </button>
+      </div>
+
+      <div class="obs__list" *ngIf="observaciones.length > 0; else sinObs">
+        <div class="obs__item" *ngFor="let o of observaciones">
+          <div class="obs__meta">
+            <span class="obs__autor">
+              <i class="ti ti-user"></i>
+              {{ o.autor ? o.autor.nombres + ' ' + o.autor.apellidos : 'Autor #' + o.autorId }}
+            </span>
+            <span class="obs__fecha">{{ o.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+            <button
+              *ngIf="canDeleteObs(o)"
+              class="btn-icon btn-icon--delete obs__delete"
+              (click)="confirmRemoveObservacion(o)"
+              title="Eliminar observación"
+            >
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>
+          <p class="obs__text">{{ o.descripcion }}</p>
+        </div>
+      </div>
+      <ng-template #sinObs>
+        <p class="obs__empty">Sin observaciones registradas.</p>
+      </ng-template>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="detailVisible = false">Cerrar</button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- ── Modal estado ── -->
+<p-dialog
+  [(visible)]="estadoDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '420px' }"
+  header="Cambiar estado del proyecto"
+>
+  <p class="gestionar-info" *ngIf="estadoItem">
+    <strong>{{ getProyectoTitulo(estadoItem) }}</strong>
+  </p>
+
+  <form [formGroup]="estadoForm">
+    <div class="form-grid">
+      <div class="field field--full">
+        <label class="field__label">Nuevo estado <span class="required">*</span></label>
+        <p-select
+          formControlName="estado"
+          [options]="estadoOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccione un estado"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+        <small class="field__error" *ngIf="estadoForm.get('estado')?.invalid && estadoForm.get('estado')?.touched">
+          El estado es requerido
+        </small>
+      </div>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="estadoDialogVisible = false">Cancelar</button>
+      <button class="btn-save" type="button" (click)="saveEstado()" [disabled]="estadoSaving">
+        <i class="ti ti-check"></i>
+        {{ estadoSaving ? 'Guardando…' : 'Confirmar' }}
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

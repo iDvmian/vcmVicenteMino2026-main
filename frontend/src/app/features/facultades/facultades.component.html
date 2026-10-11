@@ -1,0 +1,130 @@
+<p-toast position="top-right" />
+<p-confirmdialog />
+
+<div class="page">
+  <div class="page__header">
+    <h1 class="page__title">
+      <i class="ti ti-building-community"></i>
+      Facultades
+    </h1>
+    <button *ngIf="isAdmin" class="btn-primary" (click)="openCreate()">
+      <i class="ti ti-plus"></i>
+      Nueva facultad
+    </button>
+  </div>
+
+  <div class="page__card">
+    <p-table
+      [value]="items"
+      [lazy]="true"
+      [loading]="loading"
+      [paginator]="true"
+      [rows]="rows"
+      [totalRecords]="totalRecords"
+      (onLazyLoad)="onLazyLoad($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords}"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Nombre</th>
+          <th>Etiqueta</th>
+          <th>Nº Carreras</th>
+          <th>Creado</th>
+          <th *ngIf="isAdmin" class="col-actions">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-item>
+        <tr>
+          <td>{{ item.nombre }}</td>
+          <td>
+            <p-tag
+              [value]="item.etiqueta"
+              [style]="{ 'background': 'var(--ucm-teal)', 'color': '#fff' }"
+            />
+          </td>
+          <td>{{ item.carreras?.length ?? 0 }}</td>
+          <td>{{ item.createdAt | date:'dd-MM-yyyy' }}</td>
+          <td *ngIf="isAdmin">
+            <div class="action-cell">
+              <button class="btn-icon btn-icon--edit" (click)="openEdit(item)" title="Editar">
+                <i class="ti ti-edit"></i>
+              </button>
+              <button class="btn-icon btn-icon--delete" (click)="confirmDelete(item)" title="Eliminar">
+                <i class="ti ti-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td [attr.colspan]="isAdmin ? 5 : 4">
+            <div class="empty-cell">
+              <i class="ti ti-inbox"></i>
+              Sin facultades registradas
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '480px' }"
+  [header]="editingItem ? 'Editar facultad' : 'Nueva facultad'"
+>
+  <form [formGroup]="form">
+    <div class="field">
+      <label class="field__label">
+        Nombre <span class="required">*</span>
+      </label>
+      <input
+        pInputText
+        formControlName="nombre"
+        placeholder="ej: Facultad de Ciencias de la Ingeniería"
+        class="field__input"
+      />
+      <small class="field__error" *ngIf="form.get('nombre')?.invalid && form.get('nombre')?.touched">
+        El nombre es requerido
+      </small>
+    </div>
+
+    <div class="field">
+      <label class="field__label">
+        Etiqueta <span class="required">*</span>
+      </label>
+      <input
+        pInputText
+        formControlName="etiqueta"
+        placeholder="ej: FIC, FECS"
+        (input)="onEtiquetaInput($event)"
+        class="field__input"
+      />
+      <small class="field__hint">Código corto en mayúsculas</small>
+      <small class="field__error" *ngIf="form.get('etiqueta')?.invalid && form.get('etiqueta')?.touched">
+        La etiqueta es requerida
+      </small>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="dialogVisible = false">
+        Cancelar
+      </button>
+      <button class="btn-save" type="button" (click)="save()" [disabled]="saving">
+        <i class="ti ti-device-floppy"></i>
+        {{ saving ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

@@ -1,0 +1,58 @@
+<p-toast position="top-right" />
+
+<div class="page">
+  <div class="report-card">
+    <div class="report-card__icon">
+      <i class="ti ti-file-type-pdf"></i>
+    </div>
+
+    <h1 class="report-card__title">Reporte de Proyectos</h1>
+    <p class="report-card__desc">
+      Genera un documento PDF con el listado de proyectos. Puedes filtrar
+      opcionalmente por estado y/o carrera; deja los filtros vacíos para
+      incluir todos los proyectos.
+    </p>
+
+    <div class="report-card__filters">
+      <div class="field">
+        <label class="field__label">Estado</label>
+        <p-select
+          [(ngModel)]="selectedEstado"
+          [options]="estadoOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos los estados"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+      </div>
+
+      <div class="field">
+        <label class="field__label">Carrera</label>
+        <p-select
+          [(ngModel)]="selectedCarreraId"
+          [options]="carrerasOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todas las carreras"
+          [showClear]="true"
+          [filter]="true"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+      </div>
+    </div>
+
+    <div class="report-card__actions">
+      <button class="btn-secondary" type="button" (click)="clearFilters()" [disabled]="generating">
+        <i class="ti ti-filter-off"></i>
+        Limpiar filtros
+      </button>
+      <button class="btn-primary" type="button" (click)="generarPdf()" [disabled]="generating">
+        <i class="ti {{ generating ? 'ti-loader-2' : 'ti-download' }}"></i>
+        {{ generating ? 'Generando…' : 'Generar PDF' }}
+      </button>
+    </div>
+  </div>
+</div>

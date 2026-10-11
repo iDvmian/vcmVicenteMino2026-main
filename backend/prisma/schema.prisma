@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  GESTOR_VCM
+  ENCARGADO_CARRERA
+  DOCENTE
+  DECANO
+  CLIENTE
+}
+
+enum EstadoSolicitud {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+enum EstadoPlanteamiento {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum EstadoProyecto {
+  EN_PROCESO
+  PAUSADO
+  FINALIZADO
+  CANCELADO
+}
+
+// ─── Modelos ─────────────────────────────────────────────────────────────────
+
+model User {
+  id        Int      @id @default(autoincrement())
+  rut       String   @unique
+  nombres   String
+  apellidos String
+  email     String   @unique
+  telefono  String?
+  password  String
+  rol       Role     @default(CLIENTE)
+  estado    Boolean  @default(true)
+  carreraId Int?
+  carrera   Carrera? @relation(fields: [carreraId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  solicitudesComoCliente    Solicitud[]     @relation("ClienteSolicitud")
+  planteamientosComoDocente Planteamiento[] @relation("DocentePlanteamiento")
+  observacionesComoAutor    Observacion[]   @relation("AutorObservacion")
+}
+
+model Facultad {
+  id        Int       @id @default(autoincrement())
+  nombre    String
+  etiqueta  String    @unique
+  carreras  Carrera[]
+  createdAt DateTime  @default(now())
+}
+
+model Carrera {
+  id         Int                @id @default(autoincrement())
+  nombre     String
+  etiqueta   String             @unique
+  facultadId Int
+  facultad   Facultad           @relation(fields: [facultadId], references: [id])
+  usuarios   User[]
+  alumnos    AlumnoVoluntario[]
+  solicitudes Solicitud[]
+  createdAt  DateTime           @default(now())
+}
+
+model AlumnoVoluntario {
+  id        Int              @id @default(autoincrement())
+  rut       String           @unique
+  nombres   String
+  apellidos String
+  email     String           @unique
+  telefono  String?
+  carreraId Int
+  carrera   Carrera          @relation(fields: [carreraId], references: [id])
+  estado    Boolean          @default(true)
+  proyectos ProyectoAlumno[]
+  createdAt DateTime         @default(now())
+}
+
+model Solicitud {
+  id          Int               @id @default(autoincrement())
+  titulo      String
+  descripcion String            @db.Text
+  ciudad      String?  
+  estado      EstadoSolicitud   @default(PENDIENTE)
+  carreraId   Int?
+  carrera     Carrera?          @relation(fields: [carreraId], references: [id])
+  clienteId   Int
+  cliente     User              @relation("ClienteSolicitud", fields: [clienteId], references: [id])
+  archivos    ArchivoSolicitud[]
+  planteamiento Planteamiento?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model ArchivoSolicitud {
+  id          Int       @id @default(autoincrement())
+  url         String
+  publicId    String
+  nombre      String
+  solicitudId Int
+  solicitud   Solicitud @relation(fields: [solicitudId], references: [id])
+}
+
+model Planteamiento {
+  id             Int                   @id @default(autoincrement())
+  descripcion    String                @db.Text
+  tiempoEstimado String
+  estado         EstadoPlanteamiento   @default(PENDIENTE)
+  solicitudId    Int                   @unique
+  solicitud      Solicitud             @relation(fields: [solicitudId], references: [id])
+  docenteId      Int
+  docente        User                  @relation("DocentePlanteamiento", fields: [docenteId], references: [id])
+  archivos       ArchivoPlanteamiento[]
+  proyecto       Proyecto?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+}
+
+model ArchivoPlanteamiento {
+  id              Int           @id @default(autoincrement())
+  url             String
+  publicId        String
+  nombre          String
+  planteamientoId Int
+  planteamiento   Planteamiento @relation(fields: [planteamientoId], references: [id])
+}
+
+model Proyecto {
+  id              Int              @id @default(autoincrement())
+  estado          EstadoProyecto   @default(EN_PROCESO)
+  fechaInicio     DateTime
+  fechaFin        DateTime
+  planteamientoId Int              @unique
+  planteamiento   Planteamiento    @relation(fields: [planteamientoId], references: [id])
+  alumnos         ProyectoAlumno[]
+  observaciones   Observacion[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ProyectoAlumno {
+  proyectoId Int
+  alumnoId   Int
+  proyecto   Proyecto         @relation(fields: [proyectoId], references: [id])
+  alumno     AlumnoVoluntario @relation(fields: [alumnoId], references: [id])
+
+  @@id([proyectoId, alumnoId])
+}
+
+model Observacion {
+  id          Int      @id @default(autoincrement())
+  descripcion String   @db.Text
+  proyectoId  Int
+  proyecto    Proyecto @relation(fields: [proyectoId], references: [id])
+  autorId     Int
+  autor       User     @relation("AutorObservacion", fields: [autorId], references: [id])
+  createdAt   DateTime @default(now())
+}

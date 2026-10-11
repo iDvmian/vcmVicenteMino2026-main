@@ -1,0 +1,311 @@
+<p-toast position="top-right" />
+<p-confirmdialog />
+
+<div class="page">
+  <div class="page__header">
+    <h1 class="page__title">
+      <i class="ti ti-bulb"></i>
+      Planteamientos
+    </h1>
+    <button *ngIf="canCreate" class="btn-primary" (click)="openCreate()">
+      <i class="ti ti-plus"></i>
+      Nuevo planteamiento
+    </button>
+  </div>
+
+  <div class="page__filters">
+    <p-select
+      [(ngModel)]="selectedEstado"
+      (ngModelChange)="onFilterChange()"
+      [options]="estadoOptions"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Filtrar por estado"
+      [showClear]="true"
+      [style]="{ 'min-width': '200px' }"
+      appendTo="body"
+    />
+    <button class="btn-secondary" type="button" (click)="clearFilters()">
+      <i class="ti ti-filter-off"></i>
+      Limpiar filtros
+    </button>
+  </div>
+
+  <div class="page__card">
+    <p-table
+      [value]="items"
+      [lazy]="true"
+      [loading]="loading"
+      [paginator]="true"
+      [rows]="rows"
+      [totalRecords]="totalRecords"
+      (onLazyLoad)="onLazyLoad($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords}"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th class="col-descripcion">Descripción</th>
+          <th class="col-estado">Estado</th>
+          <th class="col-solicitud">Solicitud</th>
+          <th class="col-tiempo">Tiempo Estimado</th>
+          <th *ngIf="showDocenteColumn" class="col-docente">Docente</th>
+          <th class="col-fecha">Fecha</th>
+          <th class="col-actions">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-plan>
+        <tr>
+          <td class="col-descripcion" [title]="plan.descripcion">
+            {{ plan.descripcion.length > 60 ? (plan.descripcion | slice:0:60) + '…' : plan.descripcion }}
+          </td>
+          <td class="col-estado">
+            <p-tag [value]="plan.estado" [style]="getEstadoStyle(plan.estado)" />
+          </td>
+          <td class="col-solicitud" [title]="plan.solicitud?.titulo ?? ''">
+            {{ plan.solicitud?.titulo ?? '—' }}
+          </td>
+          <td class="col-tiempo">{{ plan.tiempoEstimado }}</td>
+          <td
+            *ngIf="showDocenteColumn"
+            class="col-docente"
+            [title]="plan.docente ? plan.docente.nombres + ' ' + plan.docente.apellidos : ''"
+          >
+            {{ plan.docente ? plan.docente.nombres + ' ' + plan.docente.apellidos : '—' }}
+          </td>
+          <td class="col-fecha">{{ plan.createdAt | date: 'dd/MM/yyyy' }}</td>
+          <td class="col-actions">
+            <div class="action-cell">
+              <button
+                class="btn-icon btn-icon--view"
+                (click)="openEdit(plan, true)"
+                title="Ver"
+              >
+                <i class="ti ti-eye"></i>
+              </button>
+              <button
+                *ngIf="canEdit(plan)"
+                class="btn-icon btn-icon--edit"
+                (click)="openEdit(plan)"
+                title="Editar"
+              >
+                <i class="ti ti-edit"></i>
+              </button>
+              <button
+                *ngIf="canDelete(plan)"
+                class="btn-icon btn-icon--delete"
+                (click)="confirmDelete(plan)"
+                title="Eliminar"
+              >
+                <i class="ti ti-trash"></i>
+              </button>
+              <button
+                *ngIf="canGestionar"
+                class="btn-icon btn-icon--manage"
+                (click)="openGestionar(plan)"
+                title="Gestionar"
+              >
+                <i class="ti ti-checks"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td [attr.colspan]="showDocenteColumn ? 7 : 6">
+            <div class="empty-cell">
+              <i class="ti ti-inbox"></i>
+              Sin planteamientos registrados
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- ── Modal crear / editar / ver ── -->
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '620px' }"
+  [header]="viewOnly ? 'Ver planteamiento' : (editingItem ? 'Editar planteamiento' : 'Nuevo planteamiento')"
+>
+  <form [formGroup]="form">
+    <div class="form-grid">
+
+      <!-- Solicitud (dropdown en crear, texto en editar/ver) -->
+      <div class="field field--full">
+        <label class="field__label">
+          Solicitud <span *ngIf="!editingItem && !viewOnly" class="required">*</span>
+        </label>
+        <ng-container *ngIf="!editingItem; else solicitudDisplay">
+          <p-select
+            formControlName="solicitudId"
+            [options]="solicitudesDropdown"
+            optionLabel="label"
+            optionValue="id"
+            placeholder="Seleccione una solicitud aprobada"
+            [style]="{ width: '100%' }"
+            [scrollHeight]="'250px'"
+            appendTo="body"
+          />
+          <small class="field__error" *ngIf="form.get('solicitudId')?.invalid && form.get('solicitudId')?.touched">
+            La solicitud es requerida
+          </small>
+        </ng-container>
+        <ng-template #solicitudDisplay>
+          <div class="field__readonly">
+            {{ editingItem?.solicitud?.titulo ?? ('#' + editingItem?.solicitudId) }}
+          </div>
+        </ng-template>
+      </div>
+
+      <!-- Descripción -->
+      <div class="field field--full">
+        <label class="field__label">
+          Descripción <span *ngIf="!viewOnly" class="required">*</span>
+        </label>
+        <textarea
+          formControlName="descripcion"
+          rows="5"
+          placeholder="Descripción técnica del planteamiento"
+          class="field__input field__textarea"
+        ></textarea>
+        <small class="field__error" *ngIf="form.get('descripcion')?.invalid && form.get('descripcion')?.touched">
+          La descripción es requerida
+        </small>
+      </div>
+
+      <!-- Tiempo Estimado -->
+      <div class="field field--full">
+        <label class="field__label">
+          Tiempo Estimado <span *ngIf="!viewOnly" class="required">*</span>
+        </label>
+        <input
+          pInputText
+          formControlName="tiempoEstimado"
+          placeholder="Ej: 2 meses, 8 sesiones de 2 horas"
+          class="field__input"
+        />
+        <small class="field__error" *ngIf="form.get('tiempoEstimado')?.invalid && form.get('tiempoEstimado')?.touched">
+          El tiempo estimado es requerido
+        </small>
+      </div>
+
+      <!-- Estado (solo lectura al ver) -->
+      <div class="field" *ngIf="viewOnly && editingItem">
+        <label class="field__label">Estado</label>
+        <p-tag [value]="editingItem.estado" [style]="getEstadoStyle(editingItem.estado)" />
+      </div>
+
+      <!-- Archivos (solo cuando se edita o se ve) -->
+      <div class="field field--full" *ngIf="editingItem">
+        <label class="field__label">Archivos adjuntos</label>
+        <div class="files-list" *ngIf="editingItem.archivos && editingItem.archivos.length > 0">
+          <div class="file-item" *ngFor="let archivo of editingItem.archivos">
+            <i class="ti ti-paperclip file-item__icon"></i>
+            <a [href]="archivo.url" target="_blank" class="file-item__name" [title]="archivo.nombre">
+              {{ archivo.nombre }}
+            </a>
+            <button
+              *ngIf="!viewOnly"
+              class="btn-icon btn-icon--delete"
+              (click)="confirmRemoveArchivo(archivo.id, archivo.nombre)"
+              title="Eliminar archivo"
+            >
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>
+        </div>
+        <p class="field__hint" *ngIf="!editingItem.archivos || editingItem.archivos.length === 0">
+          Sin archivos adjuntos
+        </p>
+        <div class="file-upload" *ngIf="!viewOnly">
+          <label class="btn-secondary file-upload__label" [class.file-upload__label--disabled]="uploadingFile">
+            <i class="ti {{ uploadingFile ? 'ti-loader-2' : 'ti-upload' }}"></i>
+            {{ uploadingFile ? 'Subiendo...' : 'Adjuntar archivo' }}
+            <input
+              type="file"
+              class="file-upload__input"
+              (change)="onFileSelected($event)"
+              [disabled]="uploadingFile"
+            />
+          </label>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="dialogVisible = false">
+        {{ viewOnly ? 'Cerrar' : 'Cancelar' }}
+      </button>
+      <button
+        *ngIf="!viewOnly"
+        class="btn-save"
+        type="button"
+        (click)="save()"
+        [disabled]="saving"
+      >
+        <i class="ti ti-device-floppy"></i>
+        {{ saving ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- ── Modal gestionar ── -->
+<p-dialog
+  [(visible)]="gestionarDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '420px' }"
+  header="Gestionar planteamiento"
+>
+  <p class="gestionar-info" *ngIf="gestionarItem">
+    <strong>Planteamiento #{{ gestionarItem.id }}</strong>
+    <span *ngIf="gestionarItem.solicitud"> — {{ gestionarItem.solicitud.titulo }}</span>
+  </p>
+
+  <form [formGroup]="gestionarForm">
+    <div class="form-grid">
+      <div class="field field--full">
+        <label class="field__label">Nuevo estado <span class="required">*</span></label>
+        <p-select
+          formControlName="estado"
+          [options]="gestionarEstadoOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccione un estado"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+        <small class="field__error" *ngIf="gestionarForm.get('estado')?.invalid && gestionarForm.get('estado')?.touched">
+          El estado es requerido
+        </small>
+      </div>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="gestionarDialogVisible = false">
+        Cancelar
+      </button>
+      <button class="btn-save" type="button" (click)="saveGestionar()" [disabled]="gestionarSaving">
+        <i class="ti ti-check"></i>
+        {{ gestionarSaving ? 'Guardando…' : 'Confirmar' }}
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

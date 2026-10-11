@@ -1,0 +1,32 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { EstadoPlanteamiento } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
+
+export class QueryPlanteamientosDto {
+  @ApiPropertyOptional({ example: 1, description: 'Filtrar por ID de solicitud' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  solicitudId?: number;
+
+  @ApiPropertyOptional({ enum: EstadoPlanteamiento, example: EstadoPlanteamiento.PENDIENTE })
+  @IsOptional()
+  @IsEnum(EstadoPlanteamiento)
+  estado?: EstadoPlanteamiento;
+
+  @ApiPropertyOptional({ example: 1, default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ example: 10, default: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  limit?: number = 10;
+}

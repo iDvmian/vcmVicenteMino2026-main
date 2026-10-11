@@ -1,0 +1,169 @@
+@use '@tabler/icons-webfont/dist/tabler-icons.css';
+
+:root {
+  --ucm-azul:    #1B3D8C;
+  --ucm-celeste: #29ABE2;
+  --ucm-teal:    #4DB6AC;
+  --ucm-bg:      #F4F6F8;
+  --ucm-card:    #FFFFFF;
+  --ucm-texto:   #1F2937;
+  --ucm-muted:   #6B7280;
+  --ucm-borde:   #E5E7EB;
+  --ucm-success: #22C55E;
+  --ucm-danger:  #EF4444;
+  --ucm-warning: #F59E0B;
+  --ucm-info:    #29ABE2;
+  --ucm-neutral: #9CA3AF;
+}
+
+body {
+  background: var(--ucm-bg);
+  font-family: 'Nunito Sans', sans-serif;
+  margin: 0;
+}
+
+// CORRECCIÓN 6 — Texto visible en inputs PrimeNG
+.p-inputtext {
+  color: #1F2937 !important;
+  background: #FFFFFF !important;
+}
+
+input {
+  color: #1F2937 !important;
+}
+
+.p-password input {
+  color: #1F2937 !important;
+  width: 100%;
+}
+
+// ─────────────────────────────────────────────
+// BUG 2 — Modal p-dialog con superficie clara UCM y labels legibles
+// ─────────────────────────────────────────────
+.p-dialog {
+  background: var(--ucm-card) !important;
+  color: var(--ucm-texto) !important;
+  border: 1px solid var(--ucm-borde) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+
+  .p-dialog-header {
+    background: var(--ucm-card) !important;
+    color: var(--ucm-azul) !important;
+    border-bottom: 1px solid var(--ucm-borde) !important;
+    border-radius: 10px 10px 0 0 !important;
+    font-weight: 700;
+  }
+
+  .p-dialog-content {
+    background: var(--ucm-card) !important;
+    color: var(--ucm-texto) !important;
+    border-radius: 0 !important;
+  }
+
+  .p-dialog-footer {
+    background: var(--ucm-card) !important;
+    border-top: 1px solid var(--ucm-borde) !important;
+    border-radius: 0 0 10px 10px !important;
+  }
+
+  .field label,
+  label {
+    color: var(--ucm-muted) !important;
+    font-size: 13px;
+    font-weight: 500;
+  }
+}
+
+// ─────────────────────────────────────────────
+// BUG 3 — Diferenciación de botones en p-confirmdialog
+// ─────────────────────────────────────────────
+.p-confirmdialog,
+.p-confirm-dialog {
+  .p-confirm-dialog-reject,
+  .p-confirmdialog-reject-button {
+    background: transparent !important;
+    color: var(--ucm-muted) !important;
+    border: 1px solid var(--ucm-borde) !important;
+
+    &:hover {
+      background: var(--ucm-bg) !important;
+      color: var(--ucm-texto) !important;
+    }
+  }
+
+  .p-confirm-dialog-accept,
+  .p-confirmdialog-accept-button {
+    background: var(--ucm-danger) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--ucm-danger) !important;
+
+    &:hover {
+      background: #DC2626 !important;
+      border-color: #DC2626 !important;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// BUG 4 — Dropdown p-select con fondo claro UCM
+// ─────────────────────────────────────────────
+.p-select {
+  background: var(--ucm-card) !important;
+  border: 1px solid var(--ucm-borde) !important;
+  color: var(--ucm-texto) !important;
+  border-radius: 6px !important;
+
+  .p-select-label {
+    color: var(--ucm-texto) !important;
+  }
+
+  .p-select-dropdown {
+    color: var(--ucm-muted) !important;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Encabezado de tabla con fondo diferenciado
+// ─────────────────────────────────────────────
+.p-datatable .p-datatable-thead > tr > th {
+  background: #152E6A !important;
+  color: #ffffff !important;
+}
+
+.p-select-overlay,
+.p-select-panel,
+.p-select-list-container {
+  background: var(--ucm-card) !important;
+  border: 1px solid var(--ucm-borde) !important;
+  border-radius: 8px !important;
+  color: var(--ucm-texto) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+
+  .p-select-list,
+  .p-select-options {
+    background: var(--ucm-card) !important;
+  }
+
+  .p-select-option {
+    color: var(--ucm-texto) !important;
+    background: var(--ucm-card) !important;
+
+    &:hover {
+      background: var(--ucm-bg) !important;
+      color: var(--ucm-texto) !important;
+    }
+
+    &.p-select-option-selected,
+    &[aria-selected="true"] {
+      background: var(--ucm-bg) !important;
+      color: var(--ucm-celeste) !important;
+      font-weight: 500;
+    }
+  }
+
+  .p-select-empty-message {
+    color: var(--ucm-muted) !important;
+    background: var(--ucm-card) !important;
+  }
+}

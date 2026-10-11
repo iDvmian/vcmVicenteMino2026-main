@@ -1,0 +1,76 @@
+<p-toast position="top-right" />
+
+<div class="register-page">
+  <div class="register-card">
+    <div class="register-card__header">
+      <h2>Crear cuenta</h2>
+      <p>Completa los datos para registrarte en el sistema.</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="form-row">
+        <div class="form-field">
+          <label>RUT</label>
+          <input pInputText formControlName="rut" placeholder="12345678-9" />
+          @if (form.get('rut')!.touched && form.get('rut')!.invalid) {
+            <span class="error">El RUT es obligatorio.</span>
+          }
+        </div>
+      </div>
+
+      <div class="form-row form-row--2">
+        <div class="form-field">
+          <label>Nombres</label>
+          <input pInputText formControlName="nombres" placeholder="Juan" />
+          @if (form.get('nombres')!.touched && form.get('nombres')!.invalid) {
+            <span class="error">Requerido.</span>
+          }
+        </div>
+        <div class="form-field">
+          <label>Apellidos</label>
+          <input pInputText formControlName="apellidos" placeholder="Pérez" />
+          @if (form.get('apellidos')!.touched && form.get('apellidos')!.invalid) {
+            <span class="error">Requerido.</span>
+          }
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Correo electrónico</label>
+          <input pInputText type="email" formControlName="email" placeholder="nombre@ucm.cl" />
+          @if (form.get('email')!.touched && form.get('email')!.hasError('required')) {
+            <span class="error">Requerido.</span>
+          } @else if (form.get('email')!.touched && form.get('email')!.hasError('email')) {
+            <span class="error">Correo inválido.</span>
+          }
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Teléfono <span class="optional">(opcional)</span></label>
+          <input pInputText formControlName="telefono" placeholder="+56 9 1234 5678" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Contraseña</label>
+          <input pInputText type="password" formControlName="password" placeholder="Mínimo 8 caracteres" />
+          @if (form.get('password')!.touched && form.get('password')!.hasError('required')) {
+            <span class="error">Requerida.</span>
+          } @else if (form.get('password')!.touched && form.get('password')!.hasError('minlength')) {
+            <span class="error">Mínimo 8 caracteres.</span>
+          }
+        </div>
+      </div>
+
+      <p-button type="submit" label="Crear cuenta" [loading]="loading" styleClass="register-card__submit" />
+
+      <p class="register-card__login">
+        ¿Ya tienes cuenta? <a routerLink="/login" class="link">Inicia sesión</a>
+      </p>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,249 @@
+<p-toast position="top-right" />
+<p-confirmdialog />
+
+<div class="page">
+  <div class="page__header">
+    <h1 class="page__title">
+      <i class="ti ti-users"></i>
+      Usuarios
+    </h1>
+    <button *ngIf="isAdmin" class="btn-primary" (click)="openCreate()">
+      <i class="ti ti-plus"></i>
+      Nuevo usuario
+    </button>
+  </div>
+
+  <div class="page__filters">
+    <p-select
+      [(ngModel)]="selectedRol"
+      (ngModelChange)="onFilterChange()"
+      [options]="rolOptions"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Filtrar por rol"
+      [showClear]="true"
+      [style]="{ 'min-width': '200px' }"
+      [scrollHeight]="'250px'"
+      appendTo="body"
+    />
+    <p-select
+      [(ngModel)]="selectedEstado"
+      (ngModelChange)="onFilterChange()"
+      [options]="estadoOptions"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Filtrar por estado"
+      [showClear]="true"
+      [style]="{ 'min-width': '180px' }"
+      appendTo="body"
+    />
+    <button class="btn-secondary" type="button" (click)="clearFilters()">
+      <i class="ti ti-filter-off"></i>
+      Limpiar filtros
+    </button>
+  </div>
+
+  <div class="page__card">
+    <p-table
+      [value]="items"
+      [lazy]="true"
+      [loading]="loading"
+      [paginator]="true"
+      [rows]="rows"
+      [totalRecords]="totalRecords"
+      (onLazyLoad)="onLazyLoad($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords}"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th class="col-num">#</th>
+          <th class="col-rut">RUT</th>
+          <th class="col-nombre">Nombre completo</th>
+          <th class="col-email">Email</th>
+          <th class="col-telefono">Teléfono</th>
+          <th class="col-rol">Rol</th>
+          <th class="col-estado">Estado</th>
+          <th class="col-actions">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-user let-i="rowIndex">
+        <tr>
+          <td class="col-num">{{ i + 1 }}</td>
+          <td class="cell-mono col-rut">{{ user.rut }}</td>
+          <td class="col-nombre" [title]="user.nombres + ' ' + user.apellidos">
+            {{ user.nombres }} {{ user.apellidos }}
+          </td>
+          <td class="col-email" [title]="user.email">{{ user.email }}</td>
+          <td class="col-telefono">{{ user.telefono ?? '—' }}</td>
+          <td class="col-rol">
+            <p-tag [value]="user.rol" [style]="getRolStyle(user.rol)" />
+          </td>
+          <td class="col-estado">
+            <p-tag
+              [value]="user.estado ? 'Activo' : 'Inactivo'"
+              [style]="user.estado
+                ? { 'background': 'var(--ucm-success)', 'color': '#fff' }
+                : { 'background': 'var(--ucm-neutral)', 'color': '#fff' }"
+            />
+          </td>
+          <td class="col-actions">
+            <div class="action-cell">
+              <button *ngIf="isAdmin" class="btn-icon btn-icon--edit" (click)="openEdit(user)" title="Editar">
+                <i class="ti ti-edit"></i>
+              </button>
+              <button
+                *ngIf="isAdmin && user.id !== currentUserId"
+                class="btn-icon btn-icon--delete"
+                (click)="confirmDelete(user)"
+                title="Eliminar"
+              >
+                <i class="ti ti-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="8">
+            <div class="empty-cell">
+              <i class="ti ti-inbox"></i>
+              Sin usuarios registrados
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- Modal crear / editar -->
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '560px' }"
+  [header]="editingItem ? 'Editar usuario' : 'Nuevo usuario'"
+>
+  <form [formGroup]="form">
+    <div class="form-grid">
+      <!-- RUT -->
+      <div class="field field--full">
+        <label class="field__label">
+          RUT <span class="required">*</span>
+        </label>
+        <input
+          pInputText
+          formControlName="rut"
+          placeholder="ej: 12345678-9"
+          [readonly]="!!editingItem"
+          class="field__input"
+          [class.field__input--readonly]="!!editingItem"
+        />
+        <small class="field__hint">Formato: 12345678-9 o 12345678-K</small>
+        <small class="field__error" *ngIf="form.get('rut')?.invalid && form.get('rut')?.touched">
+          RUT inválido
+        </small>
+      </div>
+
+      <!-- Nombres -->
+      <div class="field">
+        <label class="field__label">Nombres <span class="required">*</span></label>
+        <input pInputText formControlName="nombres" placeholder="Nombres" class="field__input" />
+        <small class="field__error" *ngIf="form.get('nombres')?.invalid && form.get('nombres')?.touched">
+          Los nombres son requeridos
+        </small>
+      </div>
+
+      <!-- Apellidos -->
+      <div class="field">
+        <label class="field__label">Apellidos <span class="required">*</span></label>
+        <input pInputText formControlName="apellidos" placeholder="Apellidos" class="field__input" />
+        <small class="field__error" *ngIf="form.get('apellidos')?.invalid && form.get('apellidos')?.touched">
+          Los apellidos son requeridos
+        </small>
+      </div>
+
+      <!-- Email -->
+      <div class="field">
+        <label class="field__label">Email <span class="required">*</span></label>
+        <input pInputText formControlName="email" type="email" placeholder="correo@ejemplo.cl" class="field__input" />
+        <small class="field__error" *ngIf="form.get('email')?.invalid && form.get('email')?.touched">
+          Email inválido
+        </small>
+      </div>
+
+      <!-- Teléfono -->
+      <div class="field">
+        <label class="field__label">Teléfono</label>
+        <input pInputText formControlName="telefono" placeholder="+56 9 1234 5678" class="field__input" />
+      </div>
+
+      <!-- Contraseña (solo al crear) -->
+      <div class="field" *ngIf="!editingItem">
+        <label class="field__label">Contraseña <span class="required">*</span></label>
+        <input pInputText formControlName="password" type="password" placeholder="Mínimo 8 caracteres" class="field__input" />
+        <small class="field__error" *ngIf="form.get('password')?.invalid && form.get('password')?.touched">
+          Contraseña requerida (mínimo 8 caracteres)
+        </small>
+      </div>
+
+      <!-- Rol -->
+      <div class="field">
+        <label class="field__label">Rol <span class="required">*</span></label>
+        <p-select
+          formControlName="rol"
+          [options]="rolOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccione un rol"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+        <small class="field__error" *ngIf="form.get('rol')?.invalid && form.get('rol')?.touched">
+          El rol es requerido
+        </small>
+      </div>
+
+      <!-- Estado (solo al editar) -->
+      <div class="field field--switch" *ngIf="editingItem">
+        <label class="field__label">Estado activo</label>
+        <p-toggleswitch formControlName="estado" />
+      </div>
+
+      <!-- Carrera -->
+      <div class="field field--full">
+        <label class="field__label">Carrera</label>
+        <p-select
+          formControlName="carreraId"
+          [options]="carrerasDropdown"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Sin carrera asignada"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+      </div>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="dialogVisible = false">
+        Cancelar
+      </button>
+      <button class="btn-save" type="button" (click)="save()" [disabled]="saving">
+        <i class="ti ti-device-floppy"></i>
+        {{ saving ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

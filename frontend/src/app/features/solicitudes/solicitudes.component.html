@@ -1,0 +1,333 @@
+<p-toast position="top-right" />
+<p-confirmdialog />
+
+<div class="page">
+  <div class="page__header">
+    <h1 class="page__title">
+      <i class="ti ti-file-description"></i>
+      Solicitudes
+    </h1>
+    <button *ngIf="canCreateSolicitud" class="btn-primary" (click)="openCreate()">
+      <i class="ti ti-plus"></i>
+      Nueva solicitud
+    </button>
+  </div>
+
+  <div class="page__filters">
+    <p-select
+      [(ngModel)]="selectedEstado"
+      (ngModelChange)="onFilterChange()"
+      [options]="estadoOptions"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Filtrar por estado"
+      [showClear]="true"
+      [style]="{ 'min-width': '200px' }"
+      appendTo="body"
+    />
+    <p-select
+      *ngIf="useAllEndpoint"
+      [(ngModel)]="selectedCarreraId"
+      (ngModelChange)="onFilterChange()"
+      [options]="carrerasDropdown"
+      optionLabel="label"
+      optionValue="id"
+      placeholder="Filtrar por carrera"
+      [showClear]="true"
+      [style]="{ 'min-width': '260px' }"
+      [scrollHeight]="'250px'"
+      appendTo="body"
+    />
+    <button class="btn-secondary" type="button" (click)="clearFilters()">
+      <i class="ti ti-filter-off"></i>
+      Limpiar filtros
+    </button>
+  </div>
+
+  <div class="page__card">
+    <p-table
+      [value]="items"
+      [lazy]="true"
+      [loading]="loading"
+      [paginator]="true"
+      [rows]="rows"
+      [totalRecords]="totalRecords"
+      (onLazyLoad)="onLazyLoad($event)"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords}"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th class="col-titulo">Título</th>
+          <th class="col-estado">Estado</th>
+          <th class="col-carrera">Carrera</th>
+          <th class="col-ciudad">Ciudad</th>
+          <th *ngIf="useAllEndpoint" class="col-cliente">Cliente</th>
+          <th class="col-fecha">Fecha</th>
+          <th class="col-actions">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-sol>
+        <tr>
+          <td class="col-titulo" [title]="sol.titulo">{{ sol.titulo }}</td>
+          <td class="col-estado">
+            <p-tag [value]="sol.estado" [style]="getEstadoStyle(sol.estado)" />
+          </td>
+          <td class="col-carrera">
+            <p-tag
+              *ngIf="sol.carrera"
+              [value]="sol.carrera.etiqueta"
+              [style]="{ 'background': 'var(--ucm-teal)', 'color': '#fff' }"
+            />
+            <span *ngIf="!sol.carrera" class="text-muted">—</span>
+          </td>
+          <td class="col-ciudad">{{ sol.ciudad || '—' }}</td>
+          <td *ngIf="useAllEndpoint" class="col-cliente" [title]="sol.cliente ? sol.cliente.nombres + ' ' + sol.cliente.apellidos : ''">
+            {{ sol.cliente ? sol.cliente.nombres + ' ' + sol.cliente.apellidos : '—' }}
+          </td>
+          <td class="col-fecha">{{ sol.createdAt | date: 'dd/MM/yyyy' }}</td>
+          <td class="col-actions">
+            <div class="action-cell">
+              <button
+                class="btn-icon btn-icon--view"
+                (click)="openEdit(sol, true)"
+                title="Detalles de la solicitud"
+              >
+                <i class="ti ti-eye"></i>
+              </button>
+              <button
+                *ngIf="canEdit(sol)"
+                class="btn-icon btn-icon--edit"
+                (click)="openEdit(sol)"
+                title="Editar"
+              >
+                <i class="ti ti-edit"></i>
+              </button>
+              <button
+                *ngIf="canDelete(sol)"
+                class="btn-icon btn-icon--delete"
+                (click)="confirmDelete(sol)"
+                title="Eliminar"
+              >
+                <i class="ti ti-trash"></i>
+              </button>
+              <button
+                *ngIf="canGestionar"
+                class="btn-icon btn-icon--manage"
+                (click)="openGestionar(sol)"
+                title="Gestionar"
+              >
+                <i class="ti ti-checks"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td [attr.colspan]="useAllEndpoint ? 7 : 6">
+            <div class="empty-cell">
+              <i class="ti ti-inbox"></i>
+              Sin solicitudes registradas
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- ── Modal crear / editar / ver ── -->
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '600px' }"
+  [header]="viewOnly ? 'Ver solicitud' : (editingItem ? 'Editar solicitud' : 'Nueva solicitud')"
+>
+  <form [formGroup]="form">
+    <div class="form-grid">
+      <!-- Título -->
+      <div class="field field--full">
+        <label class="field__label">Título <span *ngIf="!viewOnly" class="required">*</span></label>
+        <input
+          pInputText
+          formControlName="titulo"
+          placeholder="Título de la solicitud"
+          class="field__input"
+        />
+        <small class="field__error" *ngIf="form.get('titulo')?.invalid && form.get('titulo')?.touched">
+          El título es requerido
+        </small>
+      </div>
+
+      <!-- Descripción -->
+      <div class="field field--full">
+        <label class="field__label">Descripción <span *ngIf="!viewOnly" class="required">*</span></label>
+        <textarea
+          formControlName="descripcion"
+          rows="4"
+          placeholder="Descripción detallada de la solicitud"
+          class="field__input field__textarea"
+        ></textarea>
+        <small class="field__error" *ngIf="form.get('descripcion')?.invalid && form.get('descripcion')?.touched">
+          La descripción es requerida
+        </small>
+      </div>
+
+      <!-- Ciudad -->
+      <div class="field">
+        <label class="field__label">Ciudad</label>
+        <input
+          pInputText
+          formControlName="ciudad"
+          placeholder="Ciudad"
+          class="field__input"
+        />
+      </div>
+
+      <!-- Carrera -->
+      <div class="field">
+        <label class="field__label">Carrera</label>
+        <p-select
+          formControlName="carreraId"
+          [options]="carrerasDropdown"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Seleccione una carrera"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+      </div>
+
+      <!-- Estado (solo lectura al ver) -->
+      <div class="field" *ngIf="viewOnly && editingItem">
+        <label class="field__label">Estado</label>
+        <p-tag [value]="editingItem.estado" [style]="getEstadoStyle(editingItem.estado)" />
+      </div>
+      
+      <!-- Archivos (solo cuando se edita o se ve) -->
+      <div class="field field--full" *ngIf="editingItem">
+        <label class="field__label">Archivos adjuntos</label>
+        <div class="files-list" *ngIf="editingItem.archivos && editingItem.archivos.length > 0">
+          <div class="file-item" *ngFor="let archivo of editingItem.archivos">
+            <i class="ti ti-paperclip file-item__icon"></i>
+            <a [href]="archivo.url" target="_blank" class="file-item__name" [title]="archivo.nombre">
+              {{ archivo.nombre }}
+            </a>
+            <button
+              *ngIf="!viewOnly"
+              class="btn-icon btn-icon--delete"
+              (click)="confirmRemoveArchivo(archivo.id, archivo.nombre)"
+              title="Eliminar archivo"
+            >
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>
+        </div>
+        <p class="field__hint" *ngIf="!editingItem.archivos || editingItem.archivos.length === 0">
+          Sin archivos adjuntos
+        </p>
+        <div class="file-upload" *ngIf="!viewOnly">
+          <label class="btn-secondary file-upload__label" [class.file-upload__label--disabled]="uploadingFile">
+            <i class="ti {{ uploadingFile ? 'ti-loader-2' : 'ti-upload' }}"></i>
+            {{ uploadingFile ? 'Subiendo...' : 'Adjuntar archivo' }}
+            <input
+              type="file"
+              class="file-upload__input"
+              (change)="onFileSelected($event)"
+              [disabled]="uploadingFile"
+            />
+            
+          </label>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="dialogVisible = false">
+        {{ viewOnly ? 'Cerrar' : 'Cancelar' }}
+      </button>
+      <button
+        *ngIf="!viewOnly"
+        class="btn-save"
+        type="button"
+        (click)="save()"
+        [disabled]="saving"
+      >
+        <i class="ti ti-device-floppy"></i>
+        {{ saving ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- ── Modal gestionar ── -->
+<p-dialog
+  [(visible)]="gestionarDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '460px' }"
+  header="Gestionar solicitud"
+>
+  <p class="gestionar-info" *ngIf="gestionarItem">
+    <strong>{{ gestionarItem.titulo }}</strong>
+  </p>
+
+  <form [formGroup]="gestionarForm">
+    <div class="form-grid">
+      <!-- Estado destino -->
+      <div class="field field--full">
+        <label class="field__label">Nuevo estado <span class="required">*</span></label>
+        <p-select
+          formControlName="estado"
+          [options]="gestionarEstadoOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccione un estado"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+        <small class="field__error" *ngIf="gestionarForm.get('estado')?.invalid && gestionarForm.get('estado')?.touched">
+          El estado es requerido
+        </small>
+      </div>
+
+      <!-- Carrera (opcional al APROBAR: vincula la solicitud a una carrera) -->
+      <div class="field field--full" *ngIf="gestionarEstadoValue === 'APROBADA'">
+        <label class="field__label">Carrera (opcional)</label>
+        <p-select
+          formControlName="carreraId"
+          [options]="carrerasDropdown"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Seleccione una carrera"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+      </div>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="dialog-footer">
+      <button class="btn-cancel" type="button" (click)="gestionarDialogVisible = false">
+        Cancelar
+      </button>
+      <button class="btn-save" type="button" (click)="saveGestionar()" [disabled]="gestionarSaving">
+        <i class="ti ti-check"></i>
+        {{ gestionarSaving ? 'Guardando…' : 'Confirmar' }}
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>
