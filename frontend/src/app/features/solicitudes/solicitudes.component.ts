@@ -16,8 +16,15 @@ import { AuthService } from '../../core/services/auth.service';
 import { Solicitud, EstadoSolicitud } from '../../core/models/solicitud.model';
 import { COMUNAS_MAULE } from '../../core/constants/comunas-maule';
 
+
 interface CarreraOption {
   id: number;
+  label: string;
+  facultadId?: number;
+}
+
+interface ActiveFilter {
+  key: 'estado' | 'facultad' | 'carrera' | 'ciudad' | 'solicitante' | 'fechaDesde' | 'fechaHasta';
   label: string;
 }
 
@@ -50,8 +57,77 @@ export class SolicitudesComponent implements OnInit {
 
   selectedEstado: EstadoSolicitud | null = null;
   selectedCarreraId: number | null = null;
+  selectedCiudad: string | null = null;
+  selectedFacultadId: number | null = null;
+  facultadesDropdown: { id: number; label: string }[] = [];
+  fechaDesde = '';
+  fechaHasta = '';
+  solicitanteTexto = '';
+  showAdvanced = false;
+  private solicitanteTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Facultad y carrera no aplican a quienes ya están limitados a su carrera. */
+  get canFilterByCareer(): boolean {
+    return this.useAllEndpoint && !['DOCENTE', 'ENCARGADO_CARRERA'].includes(this.currentUser?.rol ?? '');
+  }
+
+  /** Carreras de la facultad elegida (o todas si no hay facultad). */
+  get carrerasFiltradas(): CarreraOption[] {
+    return this.selectedFacultadId === null
+      ? this.carrerasDropdown
+      : this.carrerasDropdown.filter(c => c.facultadId === this.selectedFacultadId);
+  }
+
+  /** Cantidad de filtros activos dentro del panel, para el contador del botón. */
+  get advancedCount(): number {
+    return [
+      this.selectedFacultadId !== null,
+      this.selectedCarreraId !== null,
+      !!this.solicitanteTexto.trim(),
+      !!this.fechaDesde,
+      !!this.fechaHasta,
+    ].filter(Boolean).length;
+  }
+
+  selectedOrden: 'recientes' | 'antiguas' = 'recientes';
   carrerasDropdown: CarreraOption[] = [];
   readonly comunasMaule = COMUNAS_MAULE;
+
+  readonly ordenOptions = [
+    { label: 'Más recientes primero', value: 'recientes' },
+    { label: 'Más antiguas primero', value: 'antiguas' },
+  ];
+
+  /** Filtros activos, para mostrarlos como etiquetas bajo la barra. */
+  get activeFilters(): ActiveFilter[] {
+    const filtros: ActiveFilter[] = [];
+    if (this.selectedEstado !== null) {
+      const e = this.estadoOptions.find(o => o.value === this.selectedEstado);
+      filtros.push({ key: 'estado', label: e?.label ?? String(this.selectedEstado) });
+    }
+    if (this.selectedCiudad) {
+      filtros.push({ key: 'ciudad', label: this.selectedCiudad });
+    }
+    if (this.selectedFacultadId !== null) {
+      const f = this.facultadesDropdown.find(o => o.id === this.selectedFacultadId);
+      filtros.push({ key: 'facultad', label: f?.label ?? 'Facultad' });
+    }
+    if (this.selectedCarreraId !== null) {
+      const c = this.carrerasDropdown.find(o => o.id === this.selectedCarreraId);
+      filtros.push({ key: 'carrera', label: c?.label ?? 'Carrera' });
+    }
+    if (this.solicitanteTexto.trim()) {
+      filtros.push({ key: 'solicitante', label: `Solicitante: ${this.solicitanteTexto.trim()}` });
+    }
+    if (this.fechaDesde) filtros.push({ key: 'fechaDesde', label: `Desde ${this.formatFecha(this.fechaDesde)}` });
+    if (this.fechaHasta) filtros.push({ key: 'fechaHasta', label: `Hasta ${this.formatFecha(this.fechaHasta)}` });
+    return filtros;
+  }
+
+  private formatFecha(iso: string): string {
+    const [a, m, d] = iso.split('-');
+    return `${d}/${m}/${a}`;
+  }
 
   readonly estadoOptions: { label: string; value: EstadoSolicitud }[] = [
     { label: 'Pendiente', value: 'PENDIENTE' },
@@ -95,7 +171,8 @@ export class SolicitudesComponent implements OnInit {
       descripcion: ['', [Validators.required, Validators.maxLength(560)]],
       ciudad: [null, Validators.required],
       direccion: ['', [Validators.required, Validators.maxLength(150)]],
-      numeroDireccion: ['', Validators.maxLength(10)]
+      numeroDireccion: ['', Validators.maxLength(10)],
+      carreraId: [null],
     });
 
     this.gestionarForm = this.fb.group({
@@ -134,8 +211,17 @@ export class SolicitudesComponent implements OnInit {
           : res.items;
         this.carrerasDropdown = items.map(c => ({
           id: c.id,
+          facultadId: c.facultadId,
           label: `${c.nombre} (${c.facultad?.etiqueta ?? ''})`,
         }));
+
+        const facultades = new Map<number, string>();
+        items.forEach(c => {
+          if (c.facultad) facultades.set(c.facultad.id, c.facultad.nombre);
+        });
+        this.facultadesDropdown = [...facultades.entries()]
+          .map(([id, label]) => ({ id, label }))
+          .sort((a, b) => a.label.localeCompare(b.label));
         this.cdr.detectChanges();
       },
       error: () => {},
@@ -147,6 +233,12 @@ export class SolicitudesComponent implements OnInit {
     const params: Record<string, any> = { page: this.currentPage, limit: this.rows };
     if (this.selectedEstado !== null) params['estado'] = this.selectedEstado;
     if (this.selectedCarreraId !== null) params['carreraId'] = this.selectedCarreraId;
+    if (this.selectedCiudad) params['ciudad'] = this.selectedCiudad;
+    params['orden'] = this.selectedOrden;
+    if (this.selectedFacultadId !== null) params['facultadId'] = this.selectedFacultadId;
+    if (this.fechaDesde) params['fechaDesde'] = this.fechaDesde;
+    if (this.fechaHasta) params['fechaHasta'] = this.fechaHasta;
+    if (this.solicitanteTexto.trim()) params['solicitante'] = this.solicitanteTexto.trim();
 
     const obs = this.useAllEndpoint
       ? this.service.getAll(params)
@@ -180,8 +272,36 @@ export class SolicitudesComponent implements OnInit {
   clearFilters(): void {
     this.selectedEstado = null;
     this.selectedCarreraId = null;
+    this.selectedFacultadId = null;
+    this.selectedCiudad = null;
+    this.fechaDesde = '';
+    this.fechaHasta = '';
+    this.solicitanteTexto = '';
     this.currentPage = 1;
     this.loadItems();
+  }
+
+  removeFilter(key: ActiveFilter['key']): void {
+    if (key === 'estado') this.selectedEstado = null;
+    if (key === 'ciudad') this.selectedCiudad = null;
+    if (key === 'facultad') { this.selectedFacultadId = null; this.selectedCarreraId = null; }
+    if (key === 'carrera') this.selectedCarreraId = null;
+    if (key === 'solicitante') this.solicitanteTexto = '';
+    if (key === 'fechaDesde') this.fechaDesde = '';
+    if (key === 'fechaHasta') this.fechaHasta = '';
+    this.onFilterChange();
+  }
+
+  /** Al cambiar de facultad, se limpia la carrera para no dejar una combinación imposible. */
+  onFacultadChange(): void {
+    this.selectedCarreraId = null;
+    this.onFilterChange();
+  }
+
+  /** Espera un momento después de escribir para no consultar en cada letra. */
+  onSolicitanteInput(): void {
+    if (this.solicitanteTimer) clearTimeout(this.solicitanteTimer);
+    this.solicitanteTimer = setTimeout(() => this.onFilterChange(), 400);
   }
 
   openCreate(): void {
@@ -226,7 +346,7 @@ export class SolicitudesComponent implements OnInit {
         descripcion: raw.descripcion,
         ciudad: raw.ciudad,
         direccion: raw.direccion.trim(),
-        numeroDireccion: raw.numeroDireccion?.trim() || undefined,
+        numeroDireccion: raw.numeroDireccion?.trim() || null,
         carreraId: raw.carreraId || undefined,
       };
       this.service.update(this.editingItem.id, dto).subscribe({

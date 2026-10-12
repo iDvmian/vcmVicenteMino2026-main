@@ -20,7 +20,7 @@ export interface UpdateSolicitudDto {
   descripcion?: string;
   ciudad?: string;
   direccion?: string;
-  numeroDireccion?: string;
+  numeroDireccion?: string | null;
   carreraId?: number;
 }
 
@@ -52,7 +52,18 @@ export class SolicitudesService {
   }
 
   getAll(
-    params: { estado?: EstadoSolicitud | null; carreraId?: number | null; page?: number; limit?: number } = {},
+    params: {
+      estado?: EstadoSolicitud | null;
+      carreraId?: number | null;
+      facultadId?: number | null;
+      ciudad?: string | null;
+      fechaDesde?: string | null;
+      fechaHasta?: string | null;
+      solicitante?: string | null;
+      orden?: 'recientes' | 'antiguas';
+      page?: number;
+      limit?: number;
+    } = {},
   ): Observable<PaginatedResponse<Solicitud>> {
     return this.http
       .get<any>(this.apiUrl, { params: buildParams(params) })

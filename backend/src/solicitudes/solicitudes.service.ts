@@ -29,11 +29,46 @@ export class SolicitudesService {
     private readonly mailService: MailService,
   ) {}
 
-  async findAll(query: QuerySolicitudesDto, currentUser: CurrentUser) {
-    const { estado, page = 1, limit = 10 } = query;
-    const skip = (page - 1) * limit;
-
+    /** Filtros comunes del listado: estado, ciudad, facultad, fechas, solicitante y orden. */
+  private buildFilters(query: QuerySolicitudesDto) {
+    const { estado, ciudad, facultadId, fechaDesde, fechaHasta, solicitante, orden } = query;
     const where: Record<string, unknown> = {};
+
+    if (estado !== undefined) where.estado = estado;
+    if (ciudad) where.ciudad = ciudad;
+    if (facultadId !== undefined) where.carrera = { facultadId };
+
+    if (fechaDesde || fechaHasta) {
+      const createdAt: { gte?: Date; lte?: Date } = {};
+      if (fechaDesde) createdAt.gte = new Date(`${fechaDesde}T00:00:00`);
+      if (fechaHasta) createdAt.lte = new Date(`${fechaHasta}T23:59:59.999`);
+      where.createdAt = createdAt;
+    }
+
+    // Cada palabra debe aparecer en nombres, apellidos o correo ("Rosa Mal" encuentra a Rosa Maldonado)
+    if (solicitante?.trim()) {
+      where.AND = solicitante
+        .trim()
+        .split(/\s+/)
+        .map((palabra) => ({
+          cliente: {
+            OR: [
+              { nombres: { contains: palabra } },
+              { apellidos: { contains: palabra } },
+              { email: { contains: palabra } },
+            ],
+          },
+        }));
+    }
+
+    const orderBy = { createdAt: orden === 'antiguas' ? 'asc' : 'desc' } as const;
+    return { where, orderBy };
+  }
+
+    async findAll(query: QuerySolicitudesDto, currentUser: CurrentUser) {
+    const { page = 1, limit = 10 } = query;
+    const skip = (page - 1) * limit;
+    const { where, orderBy } = this.buildFilters(query);
 
     if (currentUser.rol === Role.ENCARGADO_CARRERA || currentUser.rol === Role.DOCENTE) {
       const user = await this.prisma.user.findUnique({ where: { id: currentUser.id } });
@@ -44,15 +79,13 @@ export class SolicitudesService {
       if (query.carreraId !== undefined) where.carreraId = query.carreraId;
     }
 
-    if (estado !== undefined) where.estado = estado;
-
     const [items, total] = await Promise.all([
       this.prisma.solicitud.findMany({
         where,
         include: SOLICITUD_INCLUDE,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
       }),
       this.prisma.solicitud.count({ where }),
     ]);
@@ -65,11 +98,11 @@ export class SolicitudesService {
   }
 
   async findMisSolicitudes(clienteId: number, query: QuerySolicitudesDto) {
-    const { estado, carreraId, page = 1, limit = 10 } = query;
+    const { carreraId, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
+    const { where, orderBy } = this.buildFilters(query);
 
-    const where: Record<string, unknown> = { clienteId };
-    if (estado !== undefined) where.estado = estado;
+    where.clienteId = clienteId;
     if (carreraId !== undefined) where.carreraId = carreraId;
 
     const [items, total] = await Promise.all([
@@ -78,7 +111,7 @@ export class SolicitudesService {
         include: SOLICITUD_INCLUDE,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
       }),
       this.prisma.solicitud.count({ where }),
     ]);

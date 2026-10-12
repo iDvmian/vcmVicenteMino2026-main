@@ -31,7 +31,7 @@
           <th>Nombre</th>
           <th>Etiqueta</th>
           <th>Nº Carreras</th>
-          <th>Creado</th>
+          <th *ngIf="!isCliente">Creado</th>
           <th *ngIf="isAdmin" class="col-actions">Acciones</th>
         </tr>
       </ng-template>
@@ -46,7 +46,7 @@
             />
           </td>
           <td>{{ item.carreras?.length ?? 0 }}</td>
-          <td>{{ item.createdAt | date:'dd-MM-yyyy' }}</td>
+          <td *ngIf="!isCliente">{{ item.createdAt | date:'dd-MM-yyyy' }}</td>
           <td *ngIf="isAdmin">
             <div class="action-cell">
               <button class="btn-icon btn-icon--edit" (click)="openEdit(item)" title="Editar">
@@ -62,7 +62,7 @@
 
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td [attr.colspan]="isAdmin ? 5 : 4">
+          <td [attr.colspan]="isAdmin ? 5 : isCliente ? 3 : 4">
             <div class="empty-cell">
               <i class="ti ti-inbox"></i>
               Sin facultades registradas

@@ -20,28 +20,128 @@
       [options]="estadoOptions"
       optionLabel="label"
       optionValue="value"
-      placeholder="Filtrar por estado"
+      placeholder="Estado"
       [showClear]="true"
-      [style]="{ 'min-width': '200px' }"
+      [style]="{ 'min-width': '160px' }"
       appendTo="body"
     />
     <p-select
-      *ngIf="useAllEndpoint"
-      [(ngModel)]="selectedCarreraId"
+      [(ngModel)]="selectedCiudad"
       (ngModelChange)="onFilterChange()"
-      [options]="carrerasDropdown"
-      optionLabel="label"
-      optionValue="id"
-      placeholder="Filtrar por carrera"
+      [options]="comunasMaule"
+      placeholder="Ciudad"
+      [filter]="true"
+      filterPlaceholder="Buscar ciudad"
+      emptyFilterMessage="Sin resultados"
       [showClear]="true"
-      [style]="{ 'min-width': '260px' }"
+      [style]="{ 'min-width': '180px' }"
       [scrollHeight]="'250px'"
       appendTo="body"
     />
-    <button class="btn-secondary" type="button" (click)="clearFilters()">
+    <button class="btn-secondary" type="button" (click)="clearFilters()" [disabled]="!activeFilters.length">
       <i class="ti ti-filter-off"></i>
       Limpiar filtros
     </button>
+    <button
+      class="btn-secondary"
+      type="button"
+      (click)="showAdvanced = !showAdvanced"
+      [class.btn-secondary--active]="showAdvanced || advancedCount > 0"
+    >
+      <i class="ti ti-adjustments-horizontal"></i>
+      Más filtros
+      <span class="badge-count" *ngIf="advancedCount">{{ advancedCount }}</span>
+    </button>
+
+    <p-select
+      class="filters__order"
+      [(ngModel)]="selectedOrden"
+      (ngModelChange)="onFilterChange()"
+      [options]="ordenOptions"
+      optionLabel="label"
+      optionValue="value"
+      [style]="{ 'min-width': '200px' }"
+      appendTo="body"
+    />
+
+    <div class="filters__panel" *ngIf="showAdvanced">
+      <div class="filters__field" *ngIf="canFilterByCareer">
+        <label class="field__label">Facultad</label>
+        <p-select
+          [(ngModel)]="selectedFacultadId"
+          (ngModelChange)="onFacultadChange()"
+          [options]="facultadesDropdown"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Todas las facultades"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+      </div>
+
+      <div class="filters__field" *ngIf="canFilterByCareer">
+        <label class="field__label">Carrera</label>
+        <p-select
+          [(ngModel)]="selectedCarreraId"
+          (ngModelChange)="onFilterChange()"
+          [options]="carrerasFiltradas"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Todas las carreras"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+      </div>
+
+      <div class="filters__field" *ngIf="useAllEndpoint">
+        <label class="field__label">Solicitante</label>
+        <input
+          pInputText
+          class="field__input"
+          [(ngModel)]="solicitanteTexto"
+          (ngModelChange)="onSolicitanteInput()"
+          placeholder="Nombre o correo"
+        />
+      </div>
+
+      <div class="filters__field">
+        <label class="field__label">Desde</label>
+        <input
+          type="date"
+          class="filters__date"
+          [(ngModel)]="fechaDesde"
+          (ngModelChange)="onFilterChange()"
+          [max]="fechaHasta || null"
+        />
+      </div>
+
+      <div class="filters__field">
+        <label class="field__label">Hasta</label>
+        <input
+          type="date"
+          class="filters__date"
+          [(ngModel)]="fechaHasta"
+          (ngModelChange)="onFilterChange()"
+          [min]="fechaDesde || null"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="results-bar" *ngIf="!loading">
+    <span class="results-bar__count">
+      <strong>{{ totalRecords }}</strong>
+      {{ totalRecords === 1 ? 'resultado' : 'resultados' }}<ng-container *ngIf="activeFilters.length"> para:</ng-container>
+    </span>
+    <span class="filter-chip" *ngFor="let f of activeFilters">
+      {{ f.label }}
+      <button type="button" (click)="removeFilter(f.key)" [attr.aria-label]="'Quitar filtro ' + f.label">
+        <i class="ti ti-x"></i>
+      </button>
+    </span>
   </div>
 
   <div class="page__card">
@@ -322,7 +422,7 @@
   [draggable]="false"
   [resizable]="false"
   [style]="{ width: '460px' }"
-  header="Gestionar solicitud"
+  header="Evaluar solicitud"
 >
   <p class="gestionar-info" *ngIf="gestionarItem">
     <strong>{{ gestionarItem.titulo }}</strong>

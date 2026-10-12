@@ -73,6 +73,8 @@ export class CarrerasComponent implements OnInit {
     return this.authService.getCurrentUser()?.rol === 'ADMIN';
   }
 
+  get isCliente() { return this.authService.getCurrentUser()?.rol === 'CLIENTE'; }
+
   ngOnInit(): void {
     this.loadFacultadesDropdown();
     this.loadItems();
