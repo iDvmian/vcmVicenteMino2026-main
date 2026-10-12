@@ -17,6 +17,7 @@ export interface Solicitud {
   ciudad?: string;
   direccion?: string;
   numeroDireccion?: string;
+  telefono?: string | null;
   estado: EstadoSolicitud;
   carreraId?: number;
   carrera?: Pick<Carrera, 'id' | 'nombre' | 'etiqueta'>;

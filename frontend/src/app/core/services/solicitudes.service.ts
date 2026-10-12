@@ -12,6 +12,7 @@ export interface CreateSolicitudDto {
   ciudad: string;
   direccion: string;
   numeroDireccion?: string;
+  telefono: string;
   carreraId?: number;
 }
 
@@ -21,6 +22,7 @@ export interface UpdateSolicitudDto {
   ciudad?: string;
   direccion?: string;
   numeroDireccion?: string | null;
+  telefono?: string;
   carreraId?: number;
 }
 

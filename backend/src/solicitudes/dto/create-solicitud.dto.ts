@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength} from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, Matches, MaxLength } from 'class-validator';
 import { COMUNAS_MAULE } from '../../common/constants/comunas-maule';
 
 export class CreateSolicitudDto {
@@ -32,6 +32,12 @@ export class CreateSolicitudDto {
   @IsString()
   @MaxLength(10)
   numeroDireccion?: string;
+
+  @ApiProperty({ example: '+56 9 1234 5678', description: 'Teléfono de contacto para esta solicitud' })
+  @IsString()
+  @IsNotEmpty({ message: 'El teléfono es requerido' })
+  @Matches(/^\+?[\d\s]{8,20}$/, { message: 'Teléfono inválido (ej: +56 9 1234 5678)' })
+  telefono: string;
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()

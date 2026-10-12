@@ -100,6 +100,7 @@ model Solicitud {
   ciudad      String?  
   direccion   String?
   numeroDireccion String?
+  telefono    String?
   estado      EstadoSolicitud   @default(PENDIENTE)
   carreraId   Int?
   carrera     Carrera?          @relation(fields: [carreraId], references: [id])

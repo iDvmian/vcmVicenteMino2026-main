@@ -349,6 +349,25 @@
         />
       </div>
 
+      <!-- Teléfono de contacto -->
+      <div class="field">
+        <label class="field__label">Teléfono de contacto <span *ngIf="!viewOnly" class="required">*</span></label>
+        <input
+          pInputText
+          type="tel"
+          formControlName="telefono"
+          maxlength="20"
+          placeholder="+56 9 1234 5678"
+          class="field__input"
+        />
+        <small class="field__error" *ngIf="form.get('telefono')?.hasError('required') && form.get('telefono')?.touched">
+          El teléfono es requerido
+        </small>
+        <small class="field__error" *ngIf="form.get('telefono')?.hasError('pattern') && form.get('telefono')?.touched">
+          Teléfono inválido (ej: +56 9 1234 5678)
+        </small>
+      </div>
+
       <!-- Estado (solo lectura al ver) -->
       <div class="field" *ngIf="viewOnly && editingItem">
         <label class="field__label">Estado</label>

@@ -172,6 +172,7 @@ export class SolicitudesComponent implements OnInit {
       ciudad: [null, Validators.required],
       direccion: ['', [Validators.required, Validators.maxLength(150)]],
       numeroDireccion: ['', Validators.maxLength(10)],
+      telefono: ['', [Validators.required, Validators.pattern(/^\+?[\d\s]{8,20}$/)]],
       carreraId: [null],
     });
 
@@ -321,6 +322,7 @@ export class SolicitudesComponent implements OnInit {
       ciudad: item.ciudad ?? null,
       direccion: item.direccion ?? '',
       numeroDireccion: item.numeroDireccion ?? '',
+      telefono: item.telefono ?? '',
       carreraId: item.carreraId ?? null,
     });
     if (readonly) {
@@ -347,6 +349,7 @@ export class SolicitudesComponent implements OnInit {
         ciudad: raw.ciudad,
         direccion: raw.direccion.trim(),
         numeroDireccion: raw.numeroDireccion?.trim() || null,
+        telefono: raw.telefono.trim(),
         carreraId: raw.carreraId || undefined,
       };
       this.service.update(this.editingItem.id, dto).subscribe({
@@ -360,6 +363,7 @@ export class SolicitudesComponent implements OnInit {
         ciudad: raw.ciudad,
         direccion: raw.direccion.trim(),
         numeroDireccion: raw.numeroDireccion?.trim() || undefined,
+        telefono: raw.telefono.trim(),
         carreraId: raw.carreraId || undefined,
       };
       this.service.create(dto).subscribe({
