@@ -1,21 +1,37 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength} from 'class-validator';
+import { COMUNAS_MAULE } from '../../common/constants/comunas-maule';
 
 export class CreateSolicitudDto {
   @ApiProperty({ example: 'Capacitación en Excel para adultos mayores' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(140)
   titulo: string;
 
   @ApiProperty({ example: 'Necesitamos capacitar a 30 adultos mayores en uso básico de Excel.' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(560)
   descripcion: string;
 
-  @ApiPropertyOptional({ example: 'Talca' })
+   @ApiProperty({ example: 'Talca', enum: COMUNAS_MAULE })
+  @IsString()
+  @IsNotEmpty()
+  @IsIn(COMUNAS_MAULE, { message: 'La ciudad debe ser una comuna de la región del Maule' })
+  ciudad: string;
+
+  @ApiProperty({ example: 'Calle 1 Norte' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  direccion: string;
+
+  @ApiPropertyOptional({ example: '1234' })
   @IsOptional()
   @IsString()
-  ciudad?: string;
+  @MaxLength(10)
+  numeroDireccion?: string;
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()

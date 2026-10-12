@@ -14,6 +14,7 @@ import { SolicitudesService, CreateSolicitudDto, UpdateSolicitudDto, GestionarSo
 import { CarrerasService } from '../../core/services/carreras.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Solicitud, EstadoSolicitud } from '../../core/models/solicitud.model';
+import { COMUNAS_MAULE } from '../../core/constants/comunas-maule';
 
 interface CarreraOption {
   id: number;
@@ -50,6 +51,7 @@ export class SolicitudesComponent implements OnInit {
   selectedEstado: EstadoSolicitud | null = null;
   selectedCarreraId: number | null = null;
   carrerasDropdown: CarreraOption[] = [];
+  readonly comunasMaule = COMUNAS_MAULE;
 
   readonly estadoOptions: { label: string; value: EstadoSolicitud }[] = [
     { label: 'Pendiente', value: 'PENDIENTE' },
@@ -89,10 +91,11 @@ export class SolicitudesComponent implements OnInit {
     private fb: FormBuilder,
   ) {
     this.form = this.fb.group({
-      titulo: ['', Validators.required],
-      descripcion: ['', Validators.required],
-      ciudad: [''],
-      carreraId: [null],
+      titulo: ['', [Validators.required, Validators.maxLength(140)]],
+      descripcion: ['', [Validators.required, Validators.maxLength(560)]],
+      ciudad: [null, Validators.required],
+      direccion: ['', [Validators.required, Validators.maxLength(150)]],
+      numeroDireccion: ['', Validators.maxLength(10)]
     });
 
     this.gestionarForm = this.fb.group({
@@ -195,7 +198,9 @@ export class SolicitudesComponent implements OnInit {
     this.form.patchValue({
       titulo: item.titulo,
       descripcion: item.descripcion,
-      ciudad: item.ciudad ?? '',
+      ciudad: item.ciudad ?? null,
+      direccion: item.direccion ?? '',
+      numeroDireccion: item.numeroDireccion ?? '',
       carreraId: item.carreraId ?? null,
     });
     if (readonly) {
@@ -219,7 +224,9 @@ export class SolicitudesComponent implements OnInit {
       const dto: UpdateSolicitudDto = {
         titulo: raw.titulo,
         descripcion: raw.descripcion,
-        ciudad: raw.ciudad || undefined,
+        ciudad: raw.ciudad,
+        direccion: raw.direccion.trim(),
+        numeroDireccion: raw.numeroDireccion?.trim() || undefined,
         carreraId: raw.carreraId || undefined,
       };
       this.service.update(this.editingItem.id, dto).subscribe({
@@ -230,7 +237,9 @@ export class SolicitudesComponent implements OnInit {
       const dto: CreateSolicitudDto = {
         titulo: raw.titulo,
         descripcion: raw.descripcion,
-        ciudad: raw.ciudad || undefined,
+        ciudad: raw.ciudad,
+        direccion: raw.direccion.trim(),
+        numeroDireccion: raw.numeroDireccion?.trim() || undefined,
         carreraId: raw.carreraId || undefined,
       };
       this.service.create(dto).subscribe({

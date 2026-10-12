@@ -355,3 +355,18 @@
     cursor: not-allowed;
   }
 }
+
+//casillo titulo formualrio
+.field__textarea--titulo {
+  min-height: 0;
+  resize: none;
+}
+
+.field__counter {
+  text-align: right;
+}
+
+.field__textarea--descripcion {
+  resize: none;
+  overflow-y: hidden;
+}

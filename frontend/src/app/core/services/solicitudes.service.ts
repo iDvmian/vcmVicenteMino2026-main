@@ -9,7 +9,9 @@ import { PaginatedResponse } from '../models/paginated-response.model';
 export interface CreateSolicitudDto {
   titulo: string;
   descripcion: string;
-  ciudad?: string;
+  ciudad: string;
+  direccion: string;
+  numeroDireccion?: string;
   carreraId?: number;
 }
 
@@ -17,6 +19,8 @@ export interface UpdateSolicitudDto {
   titulo?: string;
   descripcion?: string;
   ciudad?: string;
+  direccion?: string;
+  numeroDireccion?: string;
   carreraId?: number;
 }
 

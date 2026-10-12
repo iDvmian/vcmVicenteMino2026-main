@@ -59,11 +59,11 @@
     >
       <ng-template pTemplate="header">
         <tr>
-          <th class="col-titulo">Título</th>
+          <th class="col-titulo">Solicitudes</th>
           <th class="col-estado">Estado</th>
           <th class="col-carrera">Carrera</th>
           <th class="col-ciudad">Ciudad</th>
-          <th *ngIf="useAllEndpoint" class="col-cliente">Cliente</th>
+          <th *ngIf="useAllEndpoint" class="col-cliente">Solicitante</th>
           <th class="col-fecha">Fecha</th>
           <th class="col-actions">Acciones</th>
         </tr>
@@ -154,12 +154,17 @@
       <!-- Título -->
       <div class="field field--full">
         <label class="field__label">Título <span *ngIf="!viewOnly" class="required">*</span></label>
-        <input
-          pInputText
-          formControlName="titulo"
-          placeholder="Título de la solicitud"
-          class="field__input"
-        />
+       <textarea
+        formControlName="titulo"
+        rows="2"
+        maxlength="140"
+        placeholder="Título de la solicitud"
+        class="field__input field__textarea field__textarea--titulo"
+        (keydown.enter)="$event.preventDefault()"
+        ></textarea>
+        <small class="field__hint field__counter">
+            {{ form.get('titulo')?.value?.length || 0 }}/140
+          </small>
         <small class="field__error" *ngIf="form.get('titulo')?.invalid && form.get('titulo')?.touched">
           El título es requerido
         </small>
@@ -170,24 +175,36 @@
         <label class="field__label">Descripción <span *ngIf="!viewOnly" class="required">*</span></label>
         <textarea
           formControlName="descripcion"
-          rows="4"
+          rows="10"
+          maxlength="560"
           placeholder="Descripción detallada de la solicitud"
-          class="field__input field__textarea"
+          class="field__input field__textarea field__textarea--descripcion"
         ></textarea>
+        <small class="field__hint field__counter">
+        {{ form.get('descripcion')?.value?.length || 0 }}/560
+          </small>
         <small class="field__error" *ngIf="form.get('descripcion')?.invalid && form.get('descripcion')?.touched">
           La descripción es requerida
         </small>
       </div>
 
-      <!-- Ciudad -->
+      <!-- Ciudad (solo comunas del Maule, con buscador) -->
       <div class="field">
-        <label class="field__label">Ciudad</label>
-        <input
-          pInputText
+        <label class="field__label">Ciudad <span *ngIf="!viewOnly" class="required">*</span></label>
+        <p-select
           formControlName="ciudad"
-          placeholder="Ciudad"
-          class="field__input"
+          [options]="comunasMaule"
+          placeholder="Seleccione una ciudad"
+          [filter]="true"
+          filterPlaceholder="Buscar ciudad"
+          emptyFilterMessage="Sin resultados"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
         />
+        <small class="field__error" *ngIf="form.get('ciudad')?.invalid && form.get('ciudad')?.touched">
+          La ciudad es requerida
+        </small>
       </div>
 
       <!-- Carrera -->
@@ -205,6 +222,32 @@
           appendTo="body"
         />
       </div>
+            <!-- Dirección -->
+      <div class="field">
+        <label class="field__label">Dirección del lugar <span *ngIf="!viewOnly" class="required">*</span></label>
+        <input
+          pInputText
+          formControlName="direccion"
+          maxlength="150"
+          placeholder="Ej: Calle 1 Norte"
+          class="field__input"
+        />
+        <small class="field__error" *ngIf="form.get('direccion')?.invalid && form.get('direccion')?.touched">
+          La dirección es requerida
+        </small>
+      </div>
+
+      <!-- Número (opcional) -->
+      <div class="field">
+        <label class="field__label">Número <span class="field__hint">(opcional)</span></label>
+        <input
+          pInputText
+          formControlName="numeroDireccion"
+          maxlength="10"
+          placeholder="Ej: 1234"
+          class="field__input"
+        />
+      </div>
 
       <!-- Estado (solo lectura al ver) -->
       <div class="field" *ngIf="viewOnly && editingItem">
@@ -213,6 +256,7 @@
       </div>
       
       <!-- Archivos (solo cuando se edita o se ve) -->
+       <!-- DESACTIVADO: arhivos adjuntos
       <div class="field field--full" *ngIf="editingItem">
         <label class="field__label">Archivos adjuntos</label>
         <div class="files-list" *ngIf="editingItem.archivos && editingItem.archivos.length > 0">
@@ -248,6 +292,7 @@
           </label>
         </div>
       </div>
+        -->
     </div>
   </form>
 

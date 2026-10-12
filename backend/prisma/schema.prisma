@@ -98,6 +98,8 @@ model Solicitud {
   titulo      String
   descripcion String            @db.Text
   ciudad      String?  
+  direccion   String?
+  numeroDireccion String?
   estado      EstadoSolicitud   @default(PENDIENTE)
   carreraId   Int?
   carrera     Carrera?          @relation(fields: [carreraId], references: [id])
