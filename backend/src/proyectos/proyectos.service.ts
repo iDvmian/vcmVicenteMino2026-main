@@ -7,6 +7,7 @@ import {
 import { EstadoProyecto, Role } from '@prisma/client';
 import { CurrentUser } from '../auth/strategies/jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateObservacionDto } from './dto/create-observacion.dto';
 import { CreateProyectoDto } from './dto/create-proyecto.dto';
 import { QueryProyectosDto } from './dto/query-proyectos.dto';
@@ -30,6 +31,7 @@ const PROYECTO_INCLUDE = {
       alumno: { include: { carrera: { include: { facultad: true } } } },
     },
   },
+  archivos: { orderBy: { createdAt: 'asc' as const } },
   observaciones: {
     include: { autor: { select: { id: true, nombres: true, apellidos: true, email: true } } },
     orderBy: { createdAt: 'desc' as const },
@@ -38,7 +40,10 @@ const PROYECTO_INCLUDE = {
 
 @Injectable()
 export class ProyectosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
   async findAll(query: QueryProyectosDto, currentUser: CurrentUser) {
     const { estado, page = 1, limit = 10 } = query;
@@ -141,6 +146,9 @@ export class ProyectosService {
           planteamientoId: dto.planteamientoId,
           fechaInicio: new Date(dto.fechaInicio),
           fechaFin: new Date(dto.fechaFin),
+          participantesDocentes: dto.participantesDocentes,
+          participantesEstudiantes: dto.participantesEstudiantes,
+          participantesExternos: dto.participantesExternos,
           estado: EstadoProyecto.EN_PROCESO,
         },
       });
@@ -192,6 +200,10 @@ export class ProyectosService {
     const dataToUpdate: Record<string, unknown> = {};
     if (dto.fechaInicio !== undefined) dataToUpdate.fechaInicio = new Date(dto.fechaInicio);
     if (dto.fechaFin !== undefined) dataToUpdate.fechaFin = new Date(dto.fechaFin);
+    // undefined = no tocar; null = vaciar el dato
+    if (dto.participantesDocentes !== undefined) dataToUpdate.participantesDocentes = dto.participantesDocentes;
+    if (dto.participantesEstudiantes !== undefined) dataToUpdate.participantesEstudiantes = dto.participantesEstudiantes;
+    if (dto.participantesExternos !== undefined) dataToUpdate.participantesExternos = dto.participantesExternos;
 
     if (Object.keys(dataToUpdate).length > 0) {
       await this.prisma.proyecto.update({ where: { id }, data: dataToUpdate });
@@ -227,6 +239,7 @@ export class ProyectosService {
       include: {
         planteamiento: { select: { docenteId: true } },
         observaciones: { select: { id: true } },
+        archivos: { select: { id: true, publicId: true } },
       },
     });
     if (!proyecto) throw new NotFoundException(`Proyecto con id ${id} no encontrado`);
@@ -244,12 +257,66 @@ export class ProyectosService {
       throw new BadRequestException('No se puede eliminar: el proyecto tiene observaciones registradas');
     }
 
+    // Borrar la evidencia en Cloudinary antes de eliminar los registros (evita archivos huérfanos)
+    for (const archivo of proyecto.archivos) {
+      await this.storageService.deleteFile(archivo.publicId);
+    }
+
     await this.prisma.$transaction(async (tx) => {
+      await tx.archivoProyecto.deleteMany({ where: { proyectoId: id } });
       await tx.proyectoAlumno.deleteMany({ where: { proyectoId: id } });
       await tx.proyecto.delete({ where: { id } });
     });
 
     return { data: null, message: 'Proyecto eliminado', statusCode: 200 };
+  }
+
+  // ── Evidencia (archivos del proyecto) ──────────────────────
+  async addArchivo(proyectoId: number, file: Express.Multer.File, currentUser: CurrentUser) {
+    if (!file) throw new BadRequestException('Debes adjuntar un archivo');
+
+    const proyecto = await this.prisma.proyecto.findUnique({
+      where: { id: proyectoId },
+      include: { planteamiento: { select: { docenteId: true } } },
+    });
+    if (!proyecto) throw new NotFoundException(`Proyecto con id ${proyectoId} no encontrado`);
+
+    if (currentUser.rol === Role.DOCENTE && proyecto.planteamiento.docenteId !== currentUser.id) {
+      throw new ForbiddenException('No tienes permiso para agregar archivos a este proyecto');
+    }
+    if (proyecto.estado === EstadoProyecto.CANCELADO) {
+      throw new BadRequestException('No se pueden agregar archivos a un proyecto cancelado');
+    }
+
+    const { url, publicId } = await this.storageService.uploadFile(file, 'proyectos');
+
+    const archivo = await this.prisma.archivoProyecto.create({
+      data: { url, publicId, nombre: file.originalname, proyectoId },
+    });
+
+    return { data: archivo, message: 'Archivo subido', statusCode: 201 };
+  }
+
+  async removeArchivo(proyectoId: number, archivoId: number, currentUser: CurrentUser) {
+    const proyecto = await this.prisma.proyecto.findUnique({
+      where: { id: proyectoId },
+      include: { planteamiento: { select: { docenteId: true } } },
+    });
+    if (!proyecto) throw new NotFoundException(`Proyecto con id ${proyectoId} no encontrado`);
+
+    const archivo = await this.prisma.archivoProyecto.findFirst({
+      where: { id: archivoId, proyectoId },
+    });
+    if (!archivo) throw new NotFoundException(`Archivo con id ${archivoId} no encontrado`);
+
+    if (currentUser.rol === Role.DOCENTE && proyecto.planteamiento.docenteId !== currentUser.id) {
+      throw new ForbiddenException('No tienes permiso para eliminar archivos de este proyecto');
+    }
+
+    await this.storageService.deleteFile(archivo.publicId);
+    await this.prisma.archivoProyecto.delete({ where: { id: archivoId } });
+
+    return { data: null, message: 'Archivo eliminado', statusCode: 200 };
   }
 
   async addObservacion(proyectoId: number, dto: CreateObservacionDto, currentUser: CurrentUser) {

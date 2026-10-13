@@ -461,3 +461,92 @@
     cursor: not-allowed;
   }
 }
+
+// Campos numéricos sin flechas de incrementar/decrementar
+.field__number {
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+// ── Evidencia del proyecto ───────────────────────────────────
+.evidence {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 6px 0 10px;
+
+  &__item {
+    position: relative;
+    border: 1px solid var(--ucm-borde);
+    border-radius: 8px;
+    background: var(--ucm-bg);
+    overflow: hidden;
+  }
+
+  &__link {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: var(--ucm-texto);
+  }
+
+  &__thumb {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    display: block;
+  }
+
+  &__doc {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 90px;
+    font-size: 34px;
+    color: var(--ucm-muted);
+  }
+
+  &__name {
+    padding: 6px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255, 255, 255, 0.9) !important;
+  }
+}
+
+.file-upload {
+  margin-top: 8px;
+
+  &__label {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+
+    &--disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    font-size: 0;
+  }
+}

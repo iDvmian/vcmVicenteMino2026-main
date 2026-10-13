@@ -186,6 +186,30 @@
         </small>
       </div>
 
+      <!-- Participantes de la intervención -->
+      <div class="field field--full">
+        <label class="field__label">Personas alcanzadas por la intervención</label>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div>
+            <small class="field__hint">Docentes</small>
+            <input type="number" min="0" formControlName="participantesDocentes" placeholder="0" class="field__input field__date field__number" />
+          </div>
+          <div>
+            <small class="field__hint">Estudiantes</small>
+            <input type="number" min="0" formControlName="participantesEstudiantes" placeholder="0" class="field__input field__date field__number" />
+          </div>
+          <div>
+            <small class="field__hint">Externos a la U</small>
+            <input type="number" min="0" formControlName="participantesExternos" placeholder="0" class="field__input field__date field__number" />
+          </div>
+        </div>
+        <small class="field__hint">Total: {{ totalParticipantes }} personas</small>
+        <small class="field__error"
+          *ngIf="(form.get('participantesDocentes')?.invalid || form.get('participantesEstudiantes')?.invalid || form.get('participantesExternos')?.invalid)">
+          Ingresa números enteros entre 0 y 100000
+        </small>
+      </div>
+
       <!-- Alumnos voluntarios -->
       <div class="field field--full">
         <label class="field__label">Alumnos voluntarios</label>
@@ -254,6 +278,22 @@
         <span class="detail__label">Fecha de fin</span>
         <span class="detail__value">{{ detailItem.fechaFin | date: 'dd/MM/yyyy' }}</span>
       </div>
+      <div class="detail__item">
+        <span class="detail__label">Docentes alcanzados</span>
+        <span class="detail__value">{{ detailItem.participantesDocentes ?? '—' }}</span>
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Estudiantes alcanzados</span>
+        <span class="detail__value">{{ detailItem.participantesEstudiantes ?? '—' }}</span>
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Externos a la U</span>
+        <span class="detail__value">{{ detailItem.participantesExternos ?? '—' }}</span>
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Total de personas alcanzadas</span>
+        <span class="detail__value">{{ totalDe(detailItem) }}</span>
+      </div>
       <div class="detail__item detail__item--full">
         <span class="detail__label">Alumnos asignados ({{ getNumAlumnos(detailItem) }})</span>
         <div class="chips" *ngIf="detailItem.alumnos && detailItem.alumnos.length > 0; else sinAlumnos">
@@ -264,6 +304,44 @@
         <ng-template #sinAlumnos>
           <span class="detail__value detail__value--muted">Sin alumnos asignados</span>
         </ng-template>
+      </div>
+      <div class="detail__item detail__item--full">
+        <span class="detail__label">Evidencia ({{ detailItem.archivos?.length ?? 0 }})</span>
+        <div class="evidence" *ngIf="detailItem.archivos && detailItem.archivos.length > 0; else sinEvidencia">
+          <div class="evidence__item" *ngFor="let archivo of detailItem.archivos">
+            <a [href]="archivo.url" target="_blank" rel="noopener" class="evidence__link" [title]="archivo.nombre">
+              <img *ngIf="isImagen(archivo.nombre)" [src]="archivo.url" [alt]="archivo.nombre" class="evidence__thumb" />
+              <span *ngIf="!isImagen(archivo.nombre)" class="evidence__doc"><i class="ti ti-file-text"></i></span>
+              <span class="evidence__name">{{ archivo.nombre }}</span>
+            </a>
+            <button
+              *ngIf="canManageArchivos(detailItem)"
+              class="btn-icon btn-icon--delete evidence__remove"
+              type="button"
+              (click)="confirmRemoveArchivo(archivo.id, archivo.nombre)"
+              title="Eliminar archivo"
+            >
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>
+        </div>
+        <ng-template #sinEvidencia>
+          <span class="detail__value detail__value--muted">Sin evidencia cargada</span>
+        </ng-template>
+        <div class="file-upload" *ngIf="canManageArchivos(detailItem)">
+          <label class="btn-secondary file-upload__label" [class.file-upload__label--disabled]="uploadingFile">
+            <i class="ti {{ uploadingFile ? 'ti-loader-2' : 'ti-upload' }}"></i>
+            {{ uploadingFile ? 'Subiendo...' : 'Subir archivo' }}
+            <input
+              type="file"
+              class="file-upload__input"
+              accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx"
+              (change)="onFileSelected($event)"
+              [disabled]="uploadingFile"
+            />
+          </label>
+          <small class="field__hint">JPG, PNG, PDF, Word o Excel · máximo 10 MB por archivo</small>
+        </div>
       </div>
     </div>
 

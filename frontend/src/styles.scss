@@ -167,3 +167,65 @@ input {
     background: var(--ucm-card) !important;
   }
 }
+
+// ─────────────────────────────────────────────
+// p-multiselect con fondo claro UCM (igual que p-select)
+// ─────────────────────────────────────────────
+.p-multiselect {
+  background: var(--ucm-card) !important;
+  border: 1px solid var(--ucm-borde) !important;
+  color: var(--ucm-texto) !important;
+  border-radius: 6px !important;
+
+  .p-multiselect-label,
+  .p-multiselect-label.p-placeholder {
+    color: var(--ucm-texto) !important;
+  }
+
+  .p-multiselect-dropdown {
+    color: var(--ucm-muted) !important;
+  }
+}
+
+.p-multiselect-overlay {
+  background: var(--ucm-card) !important;
+  border: 1px solid var(--ucm-borde) !important;
+  border-radius: 8px !important;
+  color: var(--ucm-texto) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+
+  .p-multiselect-header,
+  .p-multiselect-list-container,
+  .p-multiselect-list {
+    background: var(--ucm-card) !important;
+    color: var(--ucm-texto) !important;
+  }
+
+  .p-multiselect-header {
+    border-bottom: 1px solid var(--ucm-borde) !important;
+  }
+
+  .p-multiselect-option {
+    color: var(--ucm-texto) !important;
+    background: var(--ucm-card) !important;
+
+    &:hover {
+      background: var(--ucm-bg) !important;
+    }
+
+    &.p-multiselect-option-selected {
+      background: var(--ucm-bg) !important;
+      color: var(--ucm-celeste) !important;
+    }
+  }
+
+  .p-multiselect-empty-message {
+    color: var(--ucm-muted) !important;
+    background: var(--ucm-card) !important;
+  }
+
+  .p-checkbox-box {
+    background: var(--ucm-card) !important;
+    border: 1px solid var(--ucm-neutral) !important;
+  }
+}

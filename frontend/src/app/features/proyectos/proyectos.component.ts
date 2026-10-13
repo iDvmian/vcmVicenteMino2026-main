@@ -129,6 +129,9 @@ export class ProyectosComponent implements OnInit {
         fechaInicio: ['', Validators.required],
         fechaFin: ['', Validators.required],
         alumnoIds: [{ value: [], disabled: true }],
+        participantesDocentes: [null, [Validators.min(0), Validators.max(100000)]],
+        participantesEstudiantes: [null, [Validators.min(0), Validators.max(100000)]],
+        participantesExternos: [null, [Validators.min(0), Validators.max(100000)]],
       },
       { validators: fechaRangeValidator },
     );
@@ -190,6 +193,98 @@ export class ProyectosComponent implements OnInit {
   get canAddObs() {
     return ['DOCENTE', 'ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DECANO']
       .includes(this.currentUser?.rol ?? '');
+  }
+
+  // ── Evidencia (archivos del proyecto) ───────────────────────
+  readonly MAX_ARCHIVO_MB = 10;
+  readonly TIPOS_ARCHIVO = [
+    'image/jpeg',
+    'image/png',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ];
+  uploadingFile = false;
+
+  /** Solo el docente dueño del proyecto o el admin; no en proyectos cancelados. */
+  canManageArchivos(p: Proyecto | null): boolean {
+    if (!p || p.estado === 'CANCELADO') return false;
+    const user = this.currentUser;
+    if (user?.rol === 'ADMIN') return true;
+    return user?.rol === 'DOCENTE' && p.planteamiento?.docenteId === user.id;
+  }
+
+  isImagen(nombre: string): boolean {
+    return /\.(jpe?g|png)$/i.test(nombre);
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length || !this.detailItem) return;
+    const file = input.files[0];
+    input.value = '';
+
+    if (!this.TIPOS_ARCHIVO.includes(file.type)) {
+      this.messageService.add({ severity: 'error', summary: 'Archivo no permitido', detail: 'Usa JPG, PNG, PDF, Word o Excel', life: 4000 });
+      return;
+    }
+    if (file.size > this.MAX_ARCHIVO_MB * 1024 * 1024) {
+      this.messageService.add({ severity: 'error', summary: 'Archivo muy grande', detail: `El máximo es ${this.MAX_ARCHIVO_MB} MB`, life: 4000 });
+      return;
+    }
+
+    this.uploadingFile = true;
+    this.cdr.detectChanges();
+    this.service.addArchivo(this.detailItem.id, file).subscribe({
+      next: () => {
+        this.uploadingFile = false;
+        this.messageService.add({ severity: 'success', summary: 'Archivo subido', detail: `"${file.name}" agregado como evidencia`, life: 3000 });
+        this.refreshDetail();
+      },
+      error: (err: any) => {
+        this.uploadingFile = false;
+        this.cdr.detectChanges();
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: err?.error?.message || 'Error al subir el archivo', life: 4000 });
+      },
+    });
+  }
+
+  confirmRemoveArchivo(archivoId: number, nombre: string): void {
+    this.confirmationService.confirm({
+      message: `¿Eliminar el archivo "${nombre}"?`,
+      header: 'Confirmar',
+      acceptLabel: 'Eliminar',
+      rejectLabel: 'Cancelar',
+      accept: () => this.removeArchivo(archivoId),
+    });
+  }
+
+  private removeArchivo(archivoId: number): void {
+    if (!this.detailItem) return;
+    this.service.removeArchivo(this.detailItem.id, archivoId).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Archivo eliminado', detail: 'Archivo eliminado correctamente', life: 3000 });
+        this.refreshDetail();
+      },
+      error: (err: any) => {
+        this.cdr.detectChanges();
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: err?.error?.message || 'Error al eliminar el archivo', life: 4000 });
+      },
+    });
+  }
+
+  private refreshDetail(): void {
+    if (!this.detailItem) return;
+    this.service.getById(this.detailItem.id).subscribe({
+      next: (full) => {
+        this.detailItem = full;
+        this.observaciones = full.observaciones ?? [];
+        this.cdr.detectChanges();
+      },
+      error: () => { this.cdr.detectChanges(); },
+    });
   }
 
   ngOnInit(): void {
@@ -314,7 +409,7 @@ export class ProyectosComponent implements OnInit {
   // ── Crear / Editar ──────────────────────────────────────────
   openCreate(): void {
     this.editingItem = null;
-    this.form.reset({ planteamientoId: null, fechaInicio: '', fechaFin: '', alumnoIds: [] });
+    this.form.reset({ planteamientoId: null, fechaInicio: '', fechaFin: '', alumnoIds: [], participantesDocentes: null, participantesEstudiantes: null, participantesExternos: null });
     this.form.get('planteamientoId')?.enable();
     this.form.get('alumnoIds')?.disable();
     this.alumnoOptions = [];
@@ -328,6 +423,9 @@ export class ProyectosComponent implements OnInit {
       fechaInicio: this.toDateInput(item.fechaInicio),
       fechaFin: this.toDateInput(item.fechaFin),
       alumnoIds: item.alumnos?.map(pa => pa.alumnoId) ?? [],
+      participantesDocentes: item.participantesDocentes ?? null,
+      participantesEstudiantes: item.participantesEstudiantes ?? null,
+      participantesExternos: item.participantesExternos ?? null,
     });
     // planteamientoId es readonly al editar (el backend no lo acepta en PATCH).
     this.form.get('planteamientoId')?.disable();
@@ -335,6 +433,23 @@ export class ProyectosComponent implements OnInit {
     // Cargar alumnos de la carrera del proyecto para el multiselect.
     this.loadAlumnosForCarrera(item.planteamiento?.solicitud?.carreraId ?? null);
     this.dialogVisible = true;
+  }
+
+  /** Convierte el valor del input a número; vacío o inválido = null. */
+  private numOrNull(v: unknown): number | null {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  /** Total de personas alcanzadas (solo para mostrar; no se guarda en la base). */
+  get totalParticipantes(): number {
+    const g = (k: string) => Number(this.form.get(k)?.value) || 0;
+    return g('participantesDocentes') + g('participantesEstudiantes') + g('participantesExternos');
+  }
+
+  totalDe(p: Proyecto): number {
+    return (p.participantesDocentes ?? 0) + (p.participantesEstudiantes ?? 0) + (p.participantesExternos ?? 0);
   }
 
   save(): void {
@@ -350,6 +465,10 @@ export class ProyectosComponent implements OnInit {
         fechaInicio: raw.fechaInicio,
         fechaFin: raw.fechaFin,
         alumnoIds: raw.alumnoIds ?? [],
+        // Vacío = null, para que al borrar un número también se borre en la base
+        participantesDocentes: this.numOrNull(raw.participantesDocentes),
+        participantesEstudiantes: this.numOrNull(raw.participantesEstudiantes),
+        participantesExternos: this.numOrNull(raw.participantesExternos),
       };
       this.service.update(this.editingItem.id, dto).subscribe({
         next: () => this.onSaveSuccess('Proyecto actualizado'),
@@ -361,6 +480,9 @@ export class ProyectosComponent implements OnInit {
         fechaInicio: raw.fechaInicio,
         fechaFin: raw.fechaFin,
         alumnoIds: raw.alumnoIds ?? [],
+        participantesDocentes: this.numOrNull(raw.participantesDocentes) ?? undefined,
+        participantesEstudiantes: this.numOrNull(raw.participantesEstudiantes) ?? undefined,
+        participantesExternos: this.numOrNull(raw.participantesExternos) ?? undefined,
       };
       this.service.create(dto).subscribe({
         next: () => this.onSaveSuccess('Proyecto creado'),

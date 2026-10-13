@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoPlanteamiento, EstadoSolicitud, Role } from '@prisma/client';
+import { EstadoPlanteamiento, EstadoSolicitud, Role, TipoIntervencion, UnidadDuracion } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -25,6 +25,18 @@ const PLANTEAMIENTO_INCLUDE = {
   archivos: true,
   proyecto: { select: { id: true, estado: true, fechaInicio: true, fechaFin: true } },
 } as const;
+
+const UNIDAD_TEXTO: Record<UnidadDuracion, [string, string]> = {
+  DIAS: ['día', 'días'],
+  SEMANAS: ['semana', 'semanas'],
+  MESES: ['mes', 'meses'],
+};
+
+/** Texto legible de la duración, ej. "2 meses" (se guarda en tiempoEstimado). */
+function textoDuracion(cantidad: number, unidad: UnidadDuracion): string {
+  const [singular, plural] = UNIDAD_TEXTO[unidad];
+  return `${cantidad} ${cantidad === 1 ? singular : plural}`;
+}
 
 @Injectable()
 export class PlanteamientosService {
@@ -134,7 +146,13 @@ export class PlanteamientosService {
     const planteamiento = await this.prisma.planteamiento.create({
       data: {
         descripcion: dto.descripcion,
-        tiempoEstimado: dto.tiempoEstimado,
+        tiempoEstimado: textoDuracion(dto.duracionCantidad, dto.duracionUnidad),
+        duracionCantidad: dto.duracionCantidad,
+        duracionUnidad: dto.duracionUnidad,
+        horasHombre: dto.horasHombre,
+        tipoIntervencion: dto.tipoIntervencion,
+        tipoIntervencionOtro:
+          dto.tipoIntervencion === TipoIntervencion.OTRO ? dto.tipoIntervencionOtro : null,
         solicitudId: dto.solicitudId,
         docenteId,
       },
@@ -161,7 +179,21 @@ export class PlanteamientosService {
       where: { id },
       data: {
         descripcion: dto.descripcion,
-        tiempoEstimado: dto.tiempoEstimado,
+        tiempoEstimado:
+          dto.duracionCantidad !== undefined && dto.duracionUnidad !== undefined
+            ? textoDuracion(dto.duracionCantidad, dto.duracionUnidad)
+            : undefined,
+        duracionCantidad: dto.duracionCantidad,
+        duracionUnidad: dto.duracionUnidad,
+        horasHombre: dto.horasHombre,
+        tipoIntervencion: dto.tipoIntervencion,
+        // Si el tipo deja de ser OTRO se limpia la descripción (null = vaciar en Prisma)
+        tipoIntervencionOtro:
+          dto.tipoIntervencion === undefined
+            ? dto.tipoIntervencionOtro
+            : dto.tipoIntervencion === TipoIntervencion.OTRO
+              ? dto.tipoIntervencionOtro
+              : null,
       },
       include: PLANTEAMIENTO_INCLUDE,
     });

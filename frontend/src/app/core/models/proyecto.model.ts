@@ -26,17 +26,30 @@ export interface ProyectoAlumno {
   alumno: AlumnoVoluntario;
 }
 
+export interface ArchivoProyecto {
+  id: number;
+  url: string;
+  publicId: string;
+  nombre: string;
+  proyectoId: number;
+  createdAt: string;
+}
+
 export interface Proyecto {
   id: number;
   estado: EstadoProyecto;
   fechaInicio: string;
   fechaFin: string;
+  participantesDocentes?: number | null;
+  participantesEstudiantes?: number | null;
+  participantesExternos?: number | null;
   planteamientoId: number;
   // El docente y la carrera NO vienen a nivel raíz: se derivan de
   // planteamiento.docente / planteamiento.solicitud.carrera respectivamente.
   planteamiento?: Planteamiento;
   alumnos?: ProyectoAlumno[];
   observaciones?: Observacion[];
+  archivos?: ArchivoProyecto[];
   createdAt: string;
   updatedAt: string;
 }

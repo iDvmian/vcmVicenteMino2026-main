@@ -15,6 +15,7 @@ import { PlanteamientosService, CreatePlanteamientoDto, UpdatePlanteamientoDto, 
 import { SolicitudesService } from '../../core/services/solicitudes.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Planteamiento, EstadoPlanteamiento } from '../../core/models/planteamiento.model';
+import { TIPOS_INTERVENCION, UNIDADES_DURACION, tipoIntervencionLabel, TipoIntervencion } from '../../core/constants/tipos-intervencion';
 
 interface SolicitudOption {
   id: number;
@@ -92,13 +93,35 @@ export class PlanteamientosComponent implements OnInit {
     this.form = this.fb.group({
       solicitudId: [null, Validators.required],
       descripcion: ['', Validators.required],
-      tiempoEstimado: ['', Validators.required],
+      duracionCantidad: [null, [Validators.required, Validators.min(1), Validators.max(999)]],
+      duracionUnidad: ['MESES', Validators.required],
+      horasHombre: [null, [Validators.required, Validators.min(1), Validators.max(100000)]],
+      tipoIntervencion: [null, Validators.required],
+      tipoIntervencionOtro: ['', Validators.maxLength(100)],
+    });
+
+    // "Otro" exige describir el tipo; con cualquier otro tipo el campo se limpia
+    this.form.get('tipoIntervencion')?.valueChanges.subscribe((tipo: TipoIntervencion | null) => {
+      const otro = this.form.get('tipoIntervencionOtro');
+      if (tipo === 'OTRO') {
+        otro?.setValidators([Validators.required, Validators.maxLength(100)]);
+      } else {
+        otro?.setValidators([Validators.maxLength(100)]);
+        otro?.setValue('', { emitEvent: false });
+      }
+      otro?.updateValueAndValidity({ emitEvent: false });
     });
 
     this.gestionarForm = this.fb.group({
       estado: [null, Validators.required],
     });
   }
+
+  readonly tiposIntervencion = TIPOS_INTERVENCION;
+  readonly unidadesDuracion = UNIDADES_DURACION;
+  getTipoLabel = tipoIntervencionLabel;
+
+  get esOtroTipo(): boolean { return this.form.get('tipoIntervencion')?.value === 'OTRO'; }
 
   get currentUser() { return this.authService.getCurrentUser(); }
 
@@ -202,7 +225,11 @@ export class PlanteamientosComponent implements OnInit {
     this.form.patchValue({
       solicitudId: item.solicitudId,
       descripcion: item.descripcion,
-      tiempoEstimado: item.tiempoEstimado,
+      duracionCantidad: item.duracionCantidad ?? null,
+      duracionUnidad: item.duracionUnidad ?? 'MESES',
+      horasHombre: item.horasHombre ?? null,
+      tipoIntervencion: item.tipoIntervencion ?? null,
+      tipoIntervencionOtro: item.tipoIntervencionOtro ?? '',
     });
     // solicitudId siempre readonly al editar — no se puede reasignar
     this.form.get('solicitudId')?.disable();
@@ -210,7 +237,11 @@ export class PlanteamientosComponent implements OnInit {
       this.form.disable();
     } else {
       this.form.get('descripcion')?.enable();
-      this.form.get('tiempoEstimado')?.enable();
+      this.form.get('duracionCantidad')?.enable();
+      this.form.get('duracionUnidad')?.enable();
+      this.form.get('horasHombre')?.enable();
+      this.form.get('tipoIntervencion')?.enable();
+      this.form.get('tipoIntervencionOtro')?.enable();
     }
     this.dialogVisible = true;
   }
@@ -227,7 +258,11 @@ export class PlanteamientosComponent implements OnInit {
     if (this.editingItem) {
       const dto: UpdatePlanteamientoDto = {
         descripcion: raw.descripcion,
-        tiempoEstimado: raw.tiempoEstimado,
+        duracionCantidad: Number(raw.duracionCantidad),
+        duracionUnidad: raw.duracionUnidad,
+        horasHombre: Number(raw.horasHombre),
+        tipoIntervencion: raw.tipoIntervencion,
+        tipoIntervencionOtro: raw.tipoIntervencion === 'OTRO' ? raw.tipoIntervencionOtro?.trim() : undefined,
       };
       this.service.update(this.editingItem.id, dto).subscribe({
         next: () => this.onSaveSuccess('Planteamiento actualizado'),
@@ -237,7 +272,11 @@ export class PlanteamientosComponent implements OnInit {
       const dto: CreatePlanteamientoDto = {
         solicitudId: raw.solicitudId,
         descripcion: raw.descripcion,
-        tiempoEstimado: raw.tiempoEstimado,
+        duracionCantidad: Number(raw.duracionCantidad),
+        duracionUnidad: raw.duracionUnidad,
+        horasHombre: Number(raw.horasHombre),
+        tipoIntervencion: raw.tipoIntervencion,
+        tipoIntervencionOtro: raw.tipoIntervencion === 'OTRO' ? raw.tipoIntervencionOtro?.trim() : undefined,
       };
       this.service.create(dto).subscribe({
         next: () => this.onSaveSuccess('Planteamiento creado'),

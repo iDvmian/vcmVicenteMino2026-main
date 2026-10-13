@@ -366,3 +366,15 @@
     cursor: not-allowed;
   }
 }
+
+// Campos numéricos sin flechas de incrementar/decrementar
+.field__number {
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}

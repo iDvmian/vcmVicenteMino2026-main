@@ -11,12 +11,19 @@ export interface CreateProyectoDto {
   fechaInicio: string;
   fechaFin: string;
   alumnoIds?: number[];
+  participantesDocentes?: number;
+  participantesEstudiantes?: number;
+  participantesExternos?: number;
 }
 
 export interface UpdateProyectoDto {
   fechaInicio?: string;
   fechaFin?: string;
   alumnoIds?: number[];
+  // null = vaciar el dato
+  participantesDocentes?: number | null;
+  participantesEstudiantes?: number | null;
+  participantesExternos?: number | null;
 }
 
 export interface UpdateEstadoProyectoDto {
@@ -102,6 +109,20 @@ export class ProyectosService {
   removeObservacion(proyectoId: number, obsId: number): Observable<void> {
     return this.http
       .delete<any>(`${this.apiUrl}/${proyectoId}/observaciones/${obsId}`)
+      .pipe(map(() => void 0));
+  }
+
+  addArchivo(proyectoId: number, file: File): Observable<void> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http
+      .post<any>(`${this.apiUrl}/${proyectoId}/archivos`, formData)
+      .pipe(map(() => void 0));
+  }
+
+  removeArchivo(proyectoId: number, archivoId: number): Observable<void> {
+    return this.http
+      .delete<any>(`${this.apiUrl}/${proyectoId}/archivos/${archivoId}`)
       .pipe(map(() => void 0));
   }
 }

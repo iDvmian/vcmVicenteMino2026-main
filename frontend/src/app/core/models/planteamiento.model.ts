@@ -1,4 +1,5 @@
 import { Solicitud } from './solicitud.model';
+import { TipoIntervencion, UnidadDuracion } from '../constants/tipos-intervencion';
 
 export type EstadoPlanteamiento = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
 
@@ -14,6 +15,11 @@ export interface Planteamiento {
   id: number;
   descripcion: string;
   tiempoEstimado: string;
+  duracionCantidad?: number | null;
+  duracionUnidad?: UnidadDuracion | null;
+  horasHombre?: number | null;
+  tipoIntervencion?: TipoIntervencion | null;
+  tipoIntervencionOtro?: string | null;
   estado: EstadoPlanteamiento;
   solicitudId: number;
   // El backend incluye la carrera de la solicitud; se expone aquí para poder

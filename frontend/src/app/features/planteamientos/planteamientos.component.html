@@ -49,6 +49,7 @@
           <th class="col-descripcion">Descripción</th>
           <th class="col-estado">Estado</th>
           <th class="col-solicitud">Solicitud</th>
+          <th class="col-tipo">Tipo</th>
           <th class="col-tiempo">Tiempo Estimado</th>
           <th *ngIf="showDocenteColumn" class="col-docente">Docente</th>
           <th class="col-fecha">Fecha</th>
@@ -67,6 +68,7 @@
           <td class="col-solicitud" [title]="plan.solicitud?.titulo ?? ''">
             {{ plan.solicitud?.titulo ?? '—' }}
           </td>
+          <td class="col-tipo" [title]="getTipoLabel(plan.tipoIntervencion, plan.tipoIntervencionOtro)">{{ getTipoLabel(plan.tipoIntervencion, plan.tipoIntervencionOtro) }}</td>
           <td class="col-tiempo">{{ plan.tiempoEstimado }}</td>
           <td
             *ngIf="showDocenteColumn"
@@ -116,7 +118,7 @@
 
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td [attr.colspan]="showDocenteColumn ? 7 : 6">
+          <td [attr.colspan]="showDocenteColumn ? 8 : 7">
             <div class="empty-cell">
               <i class="ti ti-inbox"></i>
               Sin planteamientos registrados
@@ -183,19 +185,88 @@
         </small>
       </div>
 
-      <!-- Tiempo Estimado -->
+      <!-- Tipo de intervención -->
       <div class="field field--full">
         <label class="field__label">
-          Tiempo Estimado <span *ngIf="!viewOnly" class="required">*</span>
+          Tipo de intervención <span *ngIf="!viewOnly" class="required">*</span>
+        </label>
+        <p-select
+          formControlName="tipoIntervencion"
+          [options]="tiposIntervencion"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccione el tipo de intervención"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'260px'"
+          appendTo="body"
+        />
+        <small class="field__error" *ngIf="form.get('tipoIntervencion')?.invalid && form.get('tipoIntervencion')?.touched">
+          El tipo de intervención es requerido
+        </small>
+      </div>
+
+      <div class="field field--full" *ngIf="esOtroTipo">
+        <label class="field__label">
+          Describa el tipo de intervención <span *ngIf="!viewOnly" class="required">*</span>
         </label>
         <input
           pInputText
-          formControlName="tiempoEstimado"
-          placeholder="Ej: 2 meses, 8 sesiones de 2 horas"
+          formControlName="tipoIntervencionOtro"
+          maxlength="100"
+          placeholder="Ej: Feria de emprendimiento"
           class="field__input"
         />
-        <small class="field__error" *ngIf="form.get('tiempoEstimado')?.invalid && form.get('tiempoEstimado')?.touched">
-          El tiempo estimado es requerido
+        <small class="field__error" *ngIf="form.get('tipoIntervencionOtro')?.invalid && form.get('tipoIntervencionOtro')?.touched">
+          Debes describir el tipo de intervención
+        </small>
+      </div>
+
+      <!-- Duración de la ejecución -->
+      <div class="field">
+        <label class="field__label">
+          Duración de la ejecución <span *ngIf="!viewOnly" class="required">*</span>
+        </label>
+        <div style="display: flex; gap: 8px;">
+          <input
+            pInputText
+            type="number"
+            min="1"
+            max="999"
+            formControlName="duracionCantidad"
+            placeholder="Ej: 2"
+            class="field__input field__number"
+            style="width: 90px;"
+          />
+          <p-select
+            formControlName="duracionUnidad"
+            [options]="unidadesDuracion"
+            optionLabel="label"
+            optionValue="value"
+            [style]="{ width: '130px' }"
+            appendTo="body"
+          />
+        </div>
+        <small class="field__error" *ngIf="form.get('duracionCantidad')?.invalid && form.get('duracionCantidad')?.touched">
+          Ingresa una duración válida (mínimo 1)
+        </small>
+      </div>
+
+      <!-- Horas hombre -->
+      <div class="field">
+        <label class="field__label">
+          Horas hombre <span *ngIf="!viewOnly" class="required">*</span>
+        </label>
+        <input
+          pInputText
+          type="number"
+          min="1"
+          formControlName="horasHombre"
+          placeholder="Ej: 120"
+          class="field__input field__number"
+        />
+        <small class="field__hint">Total de horas destinadas al proyecto</small>
+        <small class="field__error" *ngIf="form.get('horasHombre')?.invalid && form.get('horasHombre')?.touched">
+          Ingresa las horas hombre (mínimo 1)
         </small>
       </div>
 

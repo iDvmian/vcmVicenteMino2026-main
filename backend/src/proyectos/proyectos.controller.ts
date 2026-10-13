@@ -11,10 +11,16 @@ import {
   Post,
   Query,
   Request,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -31,6 +37,17 @@ import { QueryProyectosDto } from './dto/query-proyectos.dto';
 import { UpdateEstadoProyectoDto } from './dto/update-estado-proyecto.dto';
 import { UpdateProyectoDto } from './dto/update-proyecto.dto';
 import { ProyectosService } from './proyectos.service';
+
+const MAX_ARCHIVO_BYTES = 10 * 1024 * 1024; // 10 MB
+const TIPOS_ARCHIVO_PERMITIDOS = [
+  'image/jpeg',
+  'image/png',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
 
 @ApiTags('proyectos')
 @ApiBearerAuth()
@@ -148,6 +165,56 @@ export class ProyectosController {
     @Request() req: { user: CurrentUser },
   ) {
     return this.proyectosService.remove(id, req.user);
+  }
+
+  @Post(':id/archivos')
+  @Roles(Role.DOCENTE, Role.ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_ARCHIVO_BYTES },
+      fileFilter: (_req, file, cb) => {
+        if (!TIPOS_ARCHIVO_PERMITIDOS.includes(file.mimetype)) {
+          return cb(
+            new BadRequestException('Tipo de archivo no permitido. Usa JPG, PNG, PDF, Word o Excel'),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  @ApiOperation({ summary: 'Subir un archivo de evidencia al proyecto (máx. 10 MB)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiCreatedResponse({ description: 'Archivo subido exitosamente' })
+  @ApiNotFoundResponse({ description: 'Proyecto no encontrado' })
+  @ApiForbiddenResponse({ description: 'Sin permiso para agregar archivos a este proyecto' })
+  addArchivo(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: { user: CurrentUser },
+  ) {
+    return this.proyectosService.addArchivo(id, file, req.user);
+  }
+
+  @Delete(':id/archivos/:archivoId')
+  @Roles(Role.DOCENTE, Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar un archivo de evidencia del proyecto' })
+  @ApiOkResponse({ description: 'Archivo eliminado exitosamente' })
+  @ApiNotFoundResponse({ description: 'Proyecto o archivo no encontrado' })
+  @ApiForbiddenResponse({ description: 'Sin permiso para eliminar archivos de este proyecto' })
+  removeArchivo(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('archivoId', ParseIntPipe) archivoId: number,
+    @Request() req: { user: CurrentUser },
+  ) {
+    return this.proyectosService.removeArchivo(id, archivoId, req.user);
   }
 
   @Post(':proyectoId/observaciones')

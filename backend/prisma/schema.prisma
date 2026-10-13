@@ -37,6 +37,26 @@ enum EstadoProyecto {
   CANCELADO
 }
 
+enum UnidadDuracion {
+  DIAS
+  SEMANAS
+  MESES
+}
+
+enum TipoIntervencion {
+  CHARLA
+  TALLER
+  CURSO_CAPACITACION
+  SEMINARIO
+  ASESORIA_TECNICA
+  OPERATIVO_TERRENO
+  APRENDIZAJE_SERVICIO
+  ACTIVIDAD_CULTURAL
+  VOLUNTARIADO
+  INVESTIGACION_APLICADA
+  OTRO
+}
+
 // ─── Modelos ─────────────────────────────────────────────────────────────────
 
 model User {
@@ -125,6 +145,11 @@ model Planteamiento {
   id             Int                   @id @default(autoincrement())
   descripcion    String                @db.Text
   tiempoEstimado String
+  duracionCantidad      Int?
+  duracionUnidad        UnidadDuracion?
+  horasHombre           Int?
+  tipoIntervencion      TipoIntervencion?
+  tipoIntervencionOtro  String?
   estado         EstadoPlanteamiento   @default(PENDIENTE)
   solicitudId    Int                   @unique
   solicitud      Solicitud             @relation(fields: [solicitudId], references: [id])
@@ -150,12 +175,26 @@ model Proyecto {
   estado          EstadoProyecto   @default(EN_PROCESO)
   fechaInicio     DateTime
   fechaFin        DateTime
+  participantesDocentes     Int?
+  participantesEstudiantes  Int?
+  participantesExternos     Int?
   planteamientoId Int              @unique
   planteamiento   Planteamiento    @relation(fields: [planteamientoId], references: [id])
   alumnos         ProyectoAlumno[]
   observaciones   Observacion[]
+  archivos        ArchivoProyecto[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+}
+
+model ArchivoProyecto {
+  id         Int      @id @default(autoincrement())
+  url        String
+  publicId   String
+  nombre     String
+  proyectoId Int
+  proyecto   Proyecto @relation(fields: [proyectoId], references: [id])
+  createdAt  DateTime @default(now())
 }
 
 model ProyectoAlumno {

@@ -4,17 +4,26 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Planteamiento, EstadoPlanteamiento } from '../models/planteamiento.model';
+import { TipoIntervencion, UnidadDuracion } from '../constants/tipos-intervencion';
 import { PaginatedResponse } from '../models/paginated-response.model';
 
 export interface CreatePlanteamientoDto {
   solicitudId: number;
   descripcion: string;
-  tiempoEstimado: string;
+  duracionCantidad: number;
+  duracionUnidad: UnidadDuracion;
+  horasHombre: number;
+  tipoIntervencion: TipoIntervencion;
+  tipoIntervencionOtro?: string;
 }
 
 export interface UpdatePlanteamientoDto {
   descripcion?: string;
-  tiempoEstimado?: string;
+  duracionCantidad?: number;
+  duracionUnidad?: UnidadDuracion;
+  horasHombre?: number;
+  tipoIntervencion?: TipoIntervencion;
+  tipoIntervencionOtro?: string;
 }
 
 export interface GestionarPlanteamientoDto {
