@@ -1,0 +1,65 @@
+<p-toast position="top-right" />
+
+<div class="perfil">
+  <header class="perfil__header">
+    <div class="perfil__avatar"><i class="ti ti-user-circle"></i></div>
+    <div>
+      <h1 class="perfil__title">Mi perfil</h1>
+      <p class="perfil__subtitle" *ngIf="user">{{ user.nombres }} {{ user.apellidos }} · {{ rolLabel }}</p>
+    </div>
+  </header>
+
+  <p *ngIf="loading" class="perfil__loading">Cargando…</p>
+
+  <ng-container *ngIf="user && !loading">
+    <section class="card">
+      <h2 class="card__title">Datos de la cuenta</h2>
+      <div class="readonly">
+        <div class="readonly__item">
+          <span class="readonly__label">RUT</span>
+          <span class="readonly__value">{{ user.rut }}</span>
+        </div>
+        <div class="readonly__item">
+          <span class="readonly__label">Rol</span>
+          <span class="readonly__value">{{ rolLabel }}</span>
+        </div>
+        <div class="readonly__item">
+          <span class="readonly__label">Carrera</span>
+          <span class="readonly__value">{{ carreraLabel }}</span>
+        </div>
+      </div>
+    </section>
+
+    <form class="card" [formGroup]="form" (ngSubmit)="save()">
+      <h2 class="card__title">Mis datos</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="nombres">Nombres</label>
+          <input pInputText id="nombres" formControlName="nombres" class="field__input" />
+          <small class="field__error" *ngIf="invalid('nombres')">Ingresa tus nombres.</small>
+        </div>
+        <div class="field">
+          <label for="apellidos">Apellidos</label>
+          <input pInputText id="apellidos" formControlName="apellidos" class="field__input" />
+          <small class="field__error" *ngIf="invalid('apellidos')">Ingresa tus apellidos.</small>
+        </div>
+        <div class="field">
+          <label for="email">Correo electrónico</label>
+          <input pInputText id="email" type="email" formControlName="email" class="field__input" />
+          <small class="field__error" *ngIf="invalid('email')">Ingresa un correo válido.</small>
+        </div>
+        <div class="field">
+          <label for="telefono">Teléfono</label>
+          <input pInputText id="telefono" formControlName="telefono" placeholder="+56 9 1234 5678" class="field__input" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <p-button label="Cancelar" severity="secondary" [outlined]="true" type="button"
+                  [disabled]="!hasChanges || saving" (onClick)="cancel()" />
+        <p-button label="Guardar cambios" type="submit" icon="pi pi-check"
+                  [loading]="saving" [disabled]="!hasChanges" />
+      </div>
+    </form>
+  </ng-container>
+</div>

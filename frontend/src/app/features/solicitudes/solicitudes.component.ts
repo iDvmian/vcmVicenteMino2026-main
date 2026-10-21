@@ -6,6 +6,7 @@ import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
+import { DatePickerModule } from 'primeng/datepicker';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -24,7 +25,7 @@ interface CarreraOption {
 }
 
 interface ActiveFilter {
-  key: 'estado' | 'facultad' | 'carrera' | 'ciudad' | 'solicitante' | 'fechaDesde' | 'fechaHasta';
+  key: 'estado' | 'facultad' | 'carrera' | 'ciudad' | 'solicitante' | 'fechas';
   label: string;
 }
 
@@ -40,6 +41,7 @@ interface ActiveFilter {
     ButtonModule,
     InputTextModule,
     SelectModule,
+    DatePickerModule,
     TagModule,
     ToastModule,
     ConfirmDialogModule,
@@ -62,6 +64,8 @@ export class SolicitudesComponent implements OnInit {
   facultadesDropdown: { id: number; label: string }[] = [];
   fechaDesde = '';
   fechaHasta = '';
+  /** Rango elegido en el calendario; fechaDesde/fechaHasta (AAAA-MM-DD) son lo que se envía al backend. */
+  rangoFechas: Date[] | null = null;
   solicitanteTexto = '';
   showAdvanced = false;
   private solicitanteTimer: ReturnType<typeof setTimeout> | null = null;
@@ -84,8 +88,7 @@ export class SolicitudesComponent implements OnInit {
       this.selectedFacultadId !== null,
       this.selectedCarreraId !== null,
       !!this.solicitanteTexto.trim(),
-      !!this.fechaDesde,
-      !!this.fechaHasta,
+      !!(this.fechaDesde || this.fechaHasta),
     ].filter(Boolean).length;
   }
 
@@ -119,9 +122,49 @@ export class SolicitudesComponent implements OnInit {
     if (this.solicitanteTexto.trim()) {
       filtros.push({ key: 'solicitante', label: `Solicitante: ${this.solicitanteTexto.trim()}` });
     }
-    if (this.fechaDesde) filtros.push({ key: 'fechaDesde', label: `Desde ${this.formatFecha(this.fechaDesde)}` });
-    if (this.fechaHasta) filtros.push({ key: 'fechaHasta', label: `Hasta ${this.formatFecha(this.fechaHasta)}` });
+    if (this.fechaDesde || this.fechaHasta) {
+      const label = this.fechaDesde && this.fechaHasta
+        ? `${this.formatFecha(this.fechaDesde)} – ${this.formatFecha(this.fechaHasta)}`
+        : this.fechaDesde
+          ? `Desde ${this.formatFecha(this.fechaDesde)}`
+          : `Hasta ${this.formatFecha(this.fechaHasta)}`;
+      filtros.push({ key: 'fechas', label });
+    }
     return filtros;
+  }
+
+  /** Date -> AAAA-MM-DD usando la fecha local (evita corrimientos por zona horaria). */
+  private toIso(d: Date): string {
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }
+
+  /** Se aplica cuando el usuario ya eligió fecha de inicio y de fin. */
+  onRangoSelect(): void {
+    const [ini, fin] = this.rangoFechas ?? [];
+    if (ini && fin) {
+      this.fechaDesde = this.toIso(ini);
+      this.fechaHasta = this.toIso(fin);
+      this.onFilterChange();
+    }
+  }
+
+  /** Si cierra el calendario con solo la fecha de inicio, se filtra desde esa fecha en adelante. */
+  onRangoClose(): void {
+    const [ini, fin] = this.rangoFechas ?? [];
+    if (ini && !fin) {
+      this.fechaDesde = this.toIso(ini);
+      this.fechaHasta = '';
+      this.onFilterChange();
+    }
+  }
+
+  onRangoClear(): void {
+    this.rangoFechas = null;
+    this.fechaDesde = '';
+    this.fechaHasta = '';
+    this.onFilterChange();
   }
 
   private formatFecha(iso: string): string {
@@ -277,6 +320,7 @@ export class SolicitudesComponent implements OnInit {
     this.selectedCiudad = null;
     this.fechaDesde = '';
     this.fechaHasta = '';
+    this.rangoFechas = null;
     this.solicitanteTexto = '';
     this.currentPage = 1;
     this.loadItems();
@@ -288,8 +332,7 @@ export class SolicitudesComponent implements OnInit {
     if (key === 'facultad') { this.selectedFacultadId = null; this.selectedCarreraId = null; }
     if (key === 'carrera') this.selectedCarreraId = null;
     if (key === 'solicitante') this.solicitanteTexto = '';
-    if (key === 'fechaDesde') this.fechaDesde = '';
-    if (key === 'fechaHasta') this.fechaHasta = '';
+    if (key === 'fechas') { this.fechaDesde = ''; this.fechaHasta = ''; this.rangoFechas = null; }
     this.onFilterChange();
   }
 

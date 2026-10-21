@@ -26,6 +26,7 @@ import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
@@ -51,6 +52,22 @@ export class UsersController {
   @ApiOkResponse({ description: 'Lista de usuarios obtenida exitosamente' })
   findAll(@Query() query: QueryUsersDto) {
     return this.usersService.findAll(query);
+  }
+
+  // IMPORTANTE: las rutas 'me' van antes que ':id' para que no se interpreten como un id.
+  @Get('me')
+  @ApiOperation({ summary: 'Obtener el perfil del usuario autenticado' })
+  @ApiOkResponse({ description: 'Perfil obtenido exitosamente' })
+  findMe(@Req() req: RequestWithUser) {
+    return this.usersService.findOne(req.user.id);
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Actualizar el perfil propio (no permite cambiar RUT, rol ni estado)' })
+  @ApiOkResponse({ description: 'Perfil actualizado exitosamente' })
+  @ApiConflictResponse({ description: 'El email ya está en uso' })
+  updateMe(@Req() req: RequestWithUser, @Body() dto: UpdateProfileDto) {
+    return this.usersService.updateProfile(req.user.id, dto);
   }
 
   @Get(':id')

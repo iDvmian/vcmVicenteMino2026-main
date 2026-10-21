@@ -1,0 +1,118 @@
+.perfil {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  &__avatar {
+    font-size: 56px;
+    line-height: 1;
+    color: var(--ucm-celeste);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 24px;
+    color: var(--ucm-azul);
+  }
+
+  &__subtitle {
+    margin: 4px 0 0;
+    color: var(--ucm-muted);
+    font-size: 14px;
+  }
+
+  &__loading {
+    color: var(--ucm-muted);
+  }
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--ucm-borde);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  display: block;
+
+  &__title {
+    margin: 0 0 4px;
+    font-size: 16px;
+    color: var(--ucm-azul);
+  }
+
+  &__hint {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: var(--ucm-muted);
+  }
+}
+
+.readonly {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ucm-muted);
+  }
+
+  &__value {
+    font-size: 15px;
+    color: var(--ucm-texto);
+    font-weight: 500;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px 20px;
+  margin-top: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ucm-texto);
+  }
+
+  &__input {
+    width: 100%;
+  }
+
+  &__error {
+    color: var(--ucm-danger);
+  }
+
+  &__help {
+    color: var(--ucm-muted);
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}

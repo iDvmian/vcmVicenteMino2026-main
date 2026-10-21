@@ -36,7 +36,10 @@
   </div>
 
   <div class="navbar__actions">
-    <span class="navbar__user">{{ currentUser?.nombres }} {{ currentUser?.apellidos }}</span>
+    <a routerLink="/perfil" routerLinkActive="navbar__profile--active" class="navbar__profile" title="Mi perfil">
+      <i class="ti ti-user-circle"></i>
+      <span>{{ currentUser?.nombres }} {{ currentUser?.apellidos }}</span>
+    </a>
     <button class="navbar__logout" (click)="logout()">
       <i class="ti ti-logout"></i>
       Salir

@@ -35,6 +35,13 @@ export class AuthService {
     return this.http.post(`${environment.apiUrl}/auth/register`, data);
   }
 
+  /** Actualiza el usuario guardado en el navegador (p. ej. tras editar el perfil). */
+  updateStoredUser(user: Partial<User>): void {
+    const current = this.getCurrentUser();
+    if (!current) return;
+    localStorage.setItem(this.USER_KEY, JSON.stringify({ ...current, ...user }));
+  }
+
   logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);

@@ -15,7 +15,23 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideHttpClient(withInterceptors([authInterceptor])),
     providePrimeNG({
-      theme: { preset: Aura, options: { ripple: true } }
+      theme: {
+        preset: Aura,
+        // La plataforma usa solo el tema claro UCM: se desactiva el modo oscuro automático del sistema
+        options: { ripple: true, darkModeSelector: '.app-dark-mode' },
+      },
+      translation: {
+        firstDayOfWeek: 1,
+        dayNames: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'],
+        dayNamesShort: ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'],
+        dayNamesMin: ['D', 'L', 'M', 'X', 'J', 'V', 'S'],
+        monthNames: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+        monthNamesShort: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'],
+        today: 'Hoy',
+        clear: 'Limpiar',
+        weekHeader: 'Sem',
+        dateFormat: 'dd/mm/yy',
+      },
     }),
   ],
 };

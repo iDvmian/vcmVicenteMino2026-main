@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
@@ -121,6 +122,33 @@ export class UsersService {
     });
 
     return { data: user, message: 'Usuario actualizado exitosamente', statusCode: 200 };
+  }
+
+  async updateProfile(id: number, dto: UpdateProfileDto) {
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Usuario no encontrado');
+
+    if (dto.email && dto.email !== existing.email) {
+      const emailTaken = await this.prisma.user.findFirst({
+        where: { email: dto.email, NOT: { id } },
+      });
+      if (emailTaken) throw new ConflictException('El email ya está registrado');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: {
+        nombres: dto.nombres?.trim(),
+        apellidos: dto.apellidos?.trim(),
+        email: dto.email,
+        // vacío => se borra el teléfono (null); undefined => no se toca
+        telefono: dto.telefono === undefined ? undefined : dto.telefono?.trim() || null,
+      },
+      omit: { password: true },
+      include: { carrera: { include: { facultad: true } } },
+    });
+
+    return { data: user, message: 'Perfil actualizado exitosamente', statusCode: 200 };
   }
 
   async remove(id: number, currentUserId: number) {

@@ -25,6 +25,13 @@ export interface CreateUsuarioDto {
   carreraId?: number | null;
 }
 
+export interface UpdatePerfilDto {
+  nombres?: string;
+  apellidos?: string;
+  email?: string;
+  telefono?: string | null;
+}
+
 export interface UpdateUsuarioDto {
   nombres?: string;
   apellidos?: string;
@@ -45,6 +52,14 @@ export class UsuariosService {
     return this.http
       .get<any>(this.apiUrl, { params: buildParams(params) })
       .pipe(map(r => r.data));
+  }
+
+  getMiPerfil(): Observable<User> {
+    return this.http.get<any>(`${this.apiUrl}/me`).pipe(map(r => r.data));
+  }
+
+  actualizarMiPerfil(dto: UpdatePerfilDto): Observable<User> {
+    return this.http.patch<any>(`${this.apiUrl}/me`, dto).pipe(map(r => r.data));
   }
 
   getUsuario(id: number): Observable<User> {

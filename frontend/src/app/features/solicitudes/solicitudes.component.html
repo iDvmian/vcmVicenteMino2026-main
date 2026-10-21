@@ -107,25 +107,21 @@
         />
       </div>
 
-      <div class="filters__field">
-        <label class="field__label">Desde</label>
-        <input
-          type="date"
-          class="filters__date"
-          [(ngModel)]="fechaDesde"
-          (ngModelChange)="onFilterChange()"
-          [max]="fechaHasta || null"
-        />
-      </div>
-
-      <div class="filters__field">
-        <label class="field__label">Hasta</label>
-        <input
-          type="date"
-          class="filters__date"
-          [(ngModel)]="fechaHasta"
-          (ngModelChange)="onFilterChange()"
-          [min]="fechaDesde || null"
+      <div class="filters__field filters__field--fechas">
+        <label class="field__label">Rango de fechas</label>
+        <p-datepicker
+          [(ngModel)]="rangoFechas"
+          selectionMode="range"
+          [readonlyInput]="true"
+          dateFormat="dd/mm/yy"
+          placeholder="Fecha de inicio – fecha de fin"
+          [showIcon]="true"
+          [showButtonBar]="true"
+          appendTo="body"
+          [style]="{ width: '100%' }"
+          (onSelect)="onRangoSelect()"
+          (onClose)="onRangoClose()"
+          (onClear)="onRangoClear()"
         />
       </div>
     </div>

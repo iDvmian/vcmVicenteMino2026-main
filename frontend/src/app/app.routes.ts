@@ -22,6 +22,11 @@ export const routes: Routes = [
     children: [
       { path: 'dashboard', component: DashboardComponent },
       {
+        path: 'perfil',
+        loadComponent: () =>
+          import('./features/perfil/perfil.component').then(m => m.PerfilComponent),
+      },
+      {
         path: 'dashboard/facultades',
         loadComponent: () =>
           import('./features/facultades/facultades.component').then(m => m.FacultadesComponent),

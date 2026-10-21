@@ -69,6 +69,32 @@
     font-size: 14px;
   }
 
+  &__profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--ucm-borde);
+    border-radius: 999px;
+    color: var(--ucm-texto);
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.15s;
+
+    i { font-size: 20px; color: var(--ucm-celeste); }
+
+    &:hover {
+      background: var(--ucm-bg);
+      color: var(--ucm-azul);
+      border-color: var(--ucm-celeste);
+    }
+
+    &--active {
+      background: rgba(41, 171, 226, 0.08);
+      border-color: var(--ucm-celeste);
+    }
+  }
+
   &__logout {
     display: flex;
     align-items: center;
