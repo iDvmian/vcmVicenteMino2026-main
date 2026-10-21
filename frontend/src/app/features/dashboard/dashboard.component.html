@@ -1,4 +1,209 @@
-<div class="dashboard">
+<!-- Panel de indicadores: Decano y Admin -->
+<div class="panel" *ngIf="showPanel">
+  <header class="panel__header">
+    <div>
+      <h1 class="panel__title">Panel de indicadores</h1>
+      <p class="panel__subtitle">
+        Vinculación con el Medio · los datos corresponden a las solicitudes recibidas en el período elegido
+      </p>
+    </div>
+  </header>
+
+  <!-- Filtros -->
+  <section class="filters">
+    <div class="filters__field filters__field--fechas">
+      <label class="filters__label">Rango de fechas</label>
+      <p-datepicker
+        [(ngModel)]="rangoFechas"
+        selectionMode="range"
+        [readonlyInput]="true"
+        dateFormat="dd/mm/yy"
+        placeholder="Fecha de inicio – fecha de fin"
+        [showIcon]="true"
+        [showButtonBar]="true"
+        appendTo="body"
+        [style]="{ width: '100%' }"
+        (onSelect)="onRangoSelect()"
+        (onClear)="onRangoClear()"
+      />
+    </div>
+    <div class="filters__field">
+      <label class="filters__label">Carrera</label>
+      <p-select
+        [options]="carreraOptions"
+        [(ngModel)]="carreraId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Todas las carreras"
+        [showClear]="true"
+        appendTo="body"
+        [style]="{ width: '100%' }"
+        (onChange)="cargar()"
+      />
+    </div>
+    <div class="filters__field">
+      <label class="filters__label">Tipo de intervención</label>
+      <p-select
+        [options]="tipoOptions"
+        [(ngModel)]="tipoIntervencion"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Todos los tipos"
+        [showClear]="true"
+        appendTo="body"
+        [style]="{ width: '100%' }"
+        (onChange)="cargar()"
+      />
+    </div>
+    <div class="filters__actions">
+      <p-button label="Limpiar filtros" icon="pi pi-filter-slash" severity="secondary" [outlined]="true"
+                [disabled]="!hayFiltros" (onClick)="limpiarFiltros()" />
+    </div>
+  </section>
+
+  <p *ngIf="loading && !data" class="panel__state">Calculando indicadores…</p>
+  <p *ngIf="error" class="panel__state panel__state--error">No se pudieron cargar los indicadores. Intenta nuevamente.</p>
+
+  <ng-container *ngIf="data as d">
+    <div [class.panel__body--loading]="loading">
+
+      <!-- Tarjetas -->
+      <section class="kpis">
+        <article class="kpi">
+          <span class="kpi__label">Solicitudes recibidas</span>
+          <span class="kpi__value">{{ fmt(d.resumen.solicitudes.total) }}</span>
+          <span class="kpi__note">
+            {{ d.resumen.solicitudes.aprobadas }} aprobadas ({{ d.resumen.solicitudes.pctAprobadas }}%) ·
+            {{ d.resumen.solicitudes.rechazadas }} rechazadas ({{ d.resumen.solicitudes.pctRechazadas }}%) ·
+            {{ d.resumen.solicitudes.pendientes }} pendientes ({{ d.resumen.solicitudes.pctPendientes }}%)
+          </span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Tasa de conversión</span>
+          <span class="kpi__value">{{ d.resumen.tasaConversion }}%</span>
+          <span class="kpi__note">De las solicitudes, las que terminan en proyecto</span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Proyectos</span>
+          <span class="kpi__value">{{ fmt(d.resumen.proyectos.total) }}</span>
+          <span class="kpi__note">
+            {{ d.resumen.proyectos.enProceso }} en proceso · {{ d.resumen.proyectos.pausados }} pausados ·
+            {{ d.resumen.proyectos.finalizados }} finalizados · {{ d.resumen.proyectos.cancelados }} cancelados
+          </span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Proyectos finalizados</span>
+          <span class="kpi__value">{{ d.resumen.proyectos.pctFinalizados }}%</span>
+          <span class="kpi__note">Sobre el total de proyectos</span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Planteamientos</span>
+          <span class="kpi__value">{{ fmt(d.resumen.planteamientos.total) }}</span>
+          <span class="kpi__note">
+            {{ d.resumen.planteamientos.APROBADO }} aprobados · {{ d.resumen.planteamientos.PENDIENTE }} pendientes ·
+            {{ d.resumen.planteamientos.RECHAZADO }} rechazados
+          </span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Horas hombre</span>
+          <span class="kpi__value">{{ fmt(d.resumen.horasHombre) }}</span>
+          <span class="kpi__note">Suma de los proyectos del período</span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Personas beneficiadas</span>
+          <span class="kpi__value">{{ fmt(d.resumen.participantes.total) }}</span>
+          <span class="kpi__note">
+            {{ d.resumen.participantes.docentes }} docentes · {{ d.resumen.participantes.estudiantes }} estudiantes ·
+            {{ d.resumen.participantes.externos }} externos
+          </span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Alumnos voluntarios</span>
+          <span class="kpi__value">{{ fmt(d.resumen.alumnosVoluntarios) }}</span>
+          <span class="kpi__note">Alumnos distintos participando</span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Duración promedio</span>
+          <span class="kpi__value">{{ fmt(d.resumen.duracionPromedioDias, ' días') }}</span>
+          <span class="kpi__note">De inicio a fin de cada proyecto</span>
+        </article>
+        <article class="kpi">
+          <span class="kpi__label">Tiempo de respuesta</span>
+          <span class="kpi__value">{{ fmt(d.resumen.tiempoRespuestaPromedioDias, ' días') }}</span>
+          <span class="kpi__note">Promedio hasta aprobar o rechazar una solicitud (aproximado)</span>
+        </article>
+      </section>
+
+      <p *ngIf="d.resumen.solicitudes.total === 0" class="panel__state">
+        No hay solicitudes con los filtros elegidos.
+      </p>
+
+      <ng-container *ngIf="d.resumen.solicitudes.total > 0">
+        <!-- Gráficos -->
+        <section class="charts">
+          <article class="chart-card chart-card--wide">
+            <h2 class="chart-card__title">Solicitudes y proyectos por mes</h2>
+            <div class="chart-card__body"><p-chart type="line" [data]="chartMes" [options]="optsLinea" /></div>
+          </article>
+          <article class="chart-card">
+            <h2 class="chart-card__title">Solicitudes por estado</h2>
+            <div class="chart-card__body"><p-chart type="doughnut" [data]="chartSolEstado" [options]="optsDonut" /></div>
+          </article>
+          <article class="chart-card">
+            <h2 class="chart-card__title">Proyectos por estado</h2>
+            <div class="chart-card__body"><p-chart type="doughnut" [data]="chartProyEstado" [options]="optsDonut" /></div>
+          </article>
+          <article class="chart-card chart-card--wide">
+            <h2 class="chart-card__title">Por tipo de intervención</h2>
+            <div class="chart-card__body"><p-chart type="bar" [data]="chartTipo" [options]="optsBarraH" /></div>
+          </article>
+          <article class="chart-card chart-card--wide">
+            <h2 class="chart-card__title">Por carrera</h2>
+            <div class="chart-card__body"><p-chart type="bar" [data]="chartCarrera" [options]="optsBarra" /></div>
+          </article>
+          <article class="chart-card chart-card--wide">
+            <h2 class="chart-card__title">Solicitudes por comuna (top 10)</h2>
+            <div class="chart-card__body"><p-chart type="bar" [data]="chartComuna" [options]="optsBarraH" /></div>
+          </article>
+        </section>
+
+        <!-- Rankings -->
+        <section class="tables">
+          <article class="table-card">
+            <h2 class="chart-card__title">Docentes más activos</h2>
+            <table class="rank">
+              <thead>
+                <tr><th>#</th><th>Docente</th><th>Planteam.</th><th>Aprobados</th><th>Proyectos</th><th>Horas hombre</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let x of d.rankingDocentes; let i = index">
+                  <td>{{ i + 1 }}</td><td>{{ x.docente }}</td><td>{{ x.planteamientos }}</td>
+                  <td>{{ x.aprobados }}</td><td>{{ x.proyectos }}</td><td>{{ fmt(x.horasHombre) }}</td>
+                </tr>
+                <tr *ngIf="!d.rankingDocentes.length"><td colspan="6" class="rank__empty">Sin datos</td></tr>
+              </tbody>
+            </table>
+          </article>
+          <article class="table-card">
+            <h2 class="chart-card__title">Alumnos voluntarios con más participación</h2>
+            <table class="rank">
+              <thead><tr><th>#</th><th>Alumno</th><th>Proyectos</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let x of d.rankingAlumnos; let i = index">
+                  <td>{{ i + 1 }}</td><td>{{ x.alumno }}</td><td>{{ x.proyectos }}</td>
+                </tr>
+                <tr *ngIf="!d.rankingAlumnos.length"><td colspan="3" class="rank__empty">Sin datos</td></tr>
+              </tbody>
+            </table>
+          </article>
+        </section>
+      </ng-container>
+    </div>
+  </ng-container>
+</div>
+
+<!-- Bienvenida para el resto de los roles -->
+<div class="dashboard" *ngIf="!showPanel">
   <div class="dashboard__welcome">
     <div class="dashboard__icon">
       <i class="ti ti-layout-dashboard"></i>

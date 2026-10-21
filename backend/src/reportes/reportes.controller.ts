@@ -10,6 +10,8 @@ import { Role } from '@prisma/client';
 import type { Response } from 'express';
 import { CurrentUser } from '../auth/strategies/jwt.strategy';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { DashboardService } from './dashboard.service';
+import { QueryDashboardDto } from './dto/query-dashboard.dto';
 import { QueryReporteProyectosDto } from './dto/query-reporte-proyectos.dto';
 import { ReportesService } from './reportes.service';
 
@@ -17,7 +19,20 @@ import { ReportesService } from './reportes.service';
 @ApiBearerAuth()
 @Controller('reportes')
 export class ReportesController {
-  constructor(private readonly reportesService: ReportesService) {}
+  constructor(
+    private readonly reportesService: ReportesService,
+    private readonly dashboardService: DashboardService,
+  ) {}
+
+  @Get('dashboard')
+  @Roles(Role.DECANO, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Indicadores y estadísticas del panel del Decano (filtrable por fechas, carrera y tipo de intervención)',
+  })
+  @ApiResponse({ status: 200, description: 'Indicadores calculados' })
+  getDashboard(@Query() query: QueryDashboardDto) {
+    return this.dashboardService.getDashboard(query);
+  }
 
   @Get('proyectos')
   @Roles(

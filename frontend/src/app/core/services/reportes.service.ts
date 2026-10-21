@@ -2,7 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { map } from 'rxjs/operators';
 import { EstadoProyecto } from '../models/proyecto.model';
+import { Dashboard, DashboardFiltros } from '../models/dashboard.model';
 
 function buildParams(obj: Record<string, any>): HttpParams {
   let p = new HttpParams();
@@ -17,6 +19,12 @@ export class ReportesService {
   private readonly apiUrl = `${environment.apiUrl}/reportes`;
 
   constructor(private http: HttpClient) {}
+
+  getDashboard(filtros: DashboardFiltros = {}): Observable<Dashboard> {
+    return this.http
+      .get<any>(`${this.apiUrl}/dashboard`, { params: buildParams(filtros) })
+      .pipe(map((r) => r.data));
+  }
 
   // El endpoint devuelve un PDF binario (attachment), NO un envelope JSON:
   // por eso se usa responseType: 'blob' y NO se aplica pipe(map(r => r.data)).
