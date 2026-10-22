@@ -18,6 +18,12 @@ export class NavbarComponent {
     return this.authService.getCurrentUser();
   }
 
+  // Facultades y Carreras no se muestran al solicitante (CLIENTE).
+  get showFacultadesCarreras(): boolean {
+    const rol = this.authService.getCurrentUser()?.rol;
+    return !!rol && rol !== 'CLIENTE';
+  }
+
   get showUsuarios(): boolean {
     const rol = this.authService.getCurrentUser()?.rol;
     return !!rol && rol !== 'CLIENTE';

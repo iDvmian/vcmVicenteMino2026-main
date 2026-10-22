@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, noAuthGuard } from './core/guards/auth.guard';
+import { authGuard, noAuthGuard, noClienteGuard } from './core/guards/auth.guard';
 import { LoginComponent } from './features/auth/login/login.component';
 import { RegisterComponent } from './features/auth/register/register.component';
 import { ForgotPasswordComponent } from './features/auth/forgot-password/forgot-password.component';
@@ -28,11 +28,13 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard/facultades',
+        canActivate: [noClienteGuard],
         loadComponent: () =>
           import('./features/facultades/facultades.component').then(m => m.FacultadesComponent),
       },
       {
         path: 'dashboard/carreras',
+        canActivate: [noClienteGuard],
         loadComponent: () =>
           import('./features/carreras/carreras.component').then(m => m.CarrerasComponent),
       },

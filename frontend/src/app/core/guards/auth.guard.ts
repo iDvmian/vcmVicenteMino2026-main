@@ -18,3 +18,18 @@ export const noAuthGuard: CanActivateFn = () => {
   }
   return true;
 };
+
+/** Bloquea rutas para el solicitante (CLIENTE): lo devuelve al dashboard */
+export const noClienteGuard: CanActivateFn = () => {
+  const router = inject(Router);
+  try {
+    const user = JSON.parse(localStorage.getItem('vcm_user') ?? 'null');
+    if (user?.rol === 'CLIENTE') {
+      router.navigate(['/dashboard']);
+      return false;
+    }
+  } catch {
+    // si el dato guardado está dañado, se deja pasar: el backend igual valida los permisos
+  }
+  return true;
+};
