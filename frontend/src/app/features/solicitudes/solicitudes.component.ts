@@ -1,5 +1,6 @@
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { TableModule, TableLazyLoadEvent } from 'primeng/table';
 import { DialogModule } from 'primeng/dialog';
@@ -13,8 +14,9 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { SolicitudesService, CreateSolicitudDto, UpdateSolicitudDto, GestionarSolicitudDto } from '../../core/services/solicitudes.service';
 import { CarrerasService } from '../../core/services/carreras.service';
+import { UsuariosService } from '../../core/services/usuarios.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Solicitud, EstadoSolicitud } from '../../core/models/solicitud.model';
+import { Solicitud, EstadoSolicitud, TIPO_CLIENTE_LABELS, TipoCliente } from '../../core/models/solicitud.model';
 import { COMUNAS_MAULE } from '../../core/constants/comunas-maule';
 
 
@@ -64,8 +66,9 @@ export class SolicitudesComponent implements OnInit {
   facultadesDropdown: { id: number; label: string }[] = [];
   fechaDesde = '';
   fechaHasta = '';
-  /** Rango elegido en el calendario; fechaDesde/fechaHasta (AAAA-MM-DD) son lo que se envía al backend. */
-  rangoFechas: Date[] | null = null;
+  /** Fechas elegidas en los calendarios; fechaDesde/fechaHasta (AAAA-MM-DD) son lo que se envía al backend. */
+  desdeDate: Date | null = null;
+  hastaDate: Date | null = null;
   solicitanteTexto = '';
   showAdvanced = false;
   private solicitanteTimer: ReturnType<typeof setTimeout> | null = null;
@@ -88,12 +91,32 @@ export class SolicitudesComponent implements OnInit {
       this.selectedFacultadId !== null,
       this.selectedCarreraId !== null,
       !!this.solicitanteTexto.trim(),
-      !!(this.fechaDesde || this.fechaHasta),
     ].filter(Boolean).length;
   }
 
   selectedOrden: 'recientes' | 'antiguas' = 'recientes';
   carrerasDropdown: CarreraOption[] = [];
+
+  readonly tipoClienteOptions = (Object.keys(TIPO_CLIENTE_LABELS) as TipoCliente[])
+    .map(value => ({ value, label: TIPO_CLIENTE_LABELS[value] }));
+
+  /** Carreras de una facultad (para el selector en dos pasos del formulario). */
+  carrerasDe(facultadId: number | null | undefined): CarreraOption[] {
+    return facultadId ? this.carrerasDropdown.filter(c => c.facultadId === facultadId) : [];
+  }
+
+  /** Texto legible del tipo de cliente (incluye el texto libre si es "Otro"). */
+  tipoClienteTexto(s: Pick<Solicitud, 'tipoCliente' | 'tipoClienteOtro'>): string {
+    if (!s.tipoCliente) return '—';
+    return s.tipoCliente === 'OTRO' && s.tipoClienteOtro
+      ? `Otro: ${s.tipoClienteOtro}`
+      : TIPO_CLIENTE_LABELS[s.tipoCliente];
+  }
+
+  /** Al cambiar de facultad en el formulario se limpia la carrera elegida. */
+  onFacultadFormChange(group: FormGroup): void {
+    group.get('carreraId')!.setValue(null);
+  }
   readonly comunasMaule = COMUNAS_MAULE;
 
   readonly ordenOptions = [
@@ -140,30 +163,10 @@ export class SolicitudesComponent implements OnInit {
     return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
-  /** Se aplica cuando el usuario ya eligió fecha de inicio y de fin. */
-  onRangoSelect(): void {
-    const [ini, fin] = this.rangoFechas ?? [];
-    if (ini && fin) {
-      this.fechaDesde = this.toIso(ini);
-      this.fechaHasta = this.toIso(fin);
-      this.onFilterChange();
-    }
-  }
-
-  /** Si cierra el calendario con solo la fecha de inicio, se filtra desde esa fecha en adelante. */
-  onRangoClose(): void {
-    const [ini, fin] = this.rangoFechas ?? [];
-    if (ini && !fin) {
-      this.fechaDesde = this.toIso(ini);
-      this.fechaHasta = '';
-      this.onFilterChange();
-    }
-  }
-
-  onRangoClear(): void {
-    this.rangoFechas = null;
-    this.fechaDesde = '';
-    this.fechaHasta = '';
+  /** Se aplica al elegir o borrar la fecha de inicio o la de fin (cualquiera sirve sola). */
+  onFechasChange(): void {
+    this.fechaDesde = this.desdeDate ? this.toIso(this.desdeDate) : '';
+    this.fechaHasta = this.hastaDate ? this.toIso(this.hastaDate) : '';
     this.onFilterChange();
   }
 
@@ -193,13 +196,18 @@ export class SolicitudesComponent implements OnInit {
   // Archivos (dentro del modal editar)
   uploadingFile = false;
 
-  // Modal gestionar
-  gestionarDialogVisible = false;
+  // Evaluar: se hace dentro del mismo modal del detalle (viewOnly + evaluando)
+  evaluando = false;
   gestionarItem: Solicitud | null = null;
   gestionarSaving = false;
   gestionarForm: FormGroup;
 
   private cdr = inject(ChangeDetectorRef);
+  private route = inject(ActivatedRoute);
+  private usuariosService = inject(UsuariosService);
+
+  /** Teléfono del perfil: se usa para prellenar el contacto de una solicitud nueva. */
+  private telefonoPerfil = '';
 
   constructor(
     private service: SolicitudesService,
@@ -216,12 +224,43 @@ export class SolicitudesComponent implements OnInit {
       direccion: ['', [Validators.required, Validators.maxLength(150)]],
       numeroDireccion: ['', Validators.maxLength(10)],
       telefono: ['', [Validators.required, Validators.pattern(/^\+?[\d\s]{8,20}$/)]],
+      tipoCliente: [null, Validators.required],
+      tipoClienteOtro: ['', Validators.maxLength(100)],
+      nombreOrganizacion: ['', Validators.maxLength(150)],
+      personasPrevistas: [null, [Validators.min(1), Validators.max(100000)]],
+      facultadId: [null],
       carreraId: [null],
+    });
+
+    // Si elige "Otro", debe escribir qué tipo de cliente es
+    this.form.get('tipoCliente')!.valueChanges.subscribe((tipo) => {
+      const otro = this.form.get('tipoClienteOtro')!;
+      if (tipo === 'OTRO') {
+        otro.setValidators([Validators.required, Validators.maxLength(100), Validators.pattern(/\S/)]);
+      } else {
+        otro.setValidators([Validators.maxLength(100)]);
+        otro.setValue('', { emitEvent: false });
+      }
+      otro.updateValueAndValidity({ emitEvent: false });
     });
 
     this.gestionarForm = this.fb.group({
       estado: [null, Validators.required],
+      facultadId: [null],
       carreraId: [null],
+      motivoRechazo: [''],
+    });
+
+    // El motivo solo es obligatorio cuando se rechaza
+    this.gestionarForm.get('estado')!.valueChanges.subscribe((estado) => {
+      const motivo = this.gestionarForm.get('motivoRechazo')!;
+      if (estado === 'RECHAZADA') {
+        motivo.setValidators([Validators.required, Validators.pattern(/\S/), Validators.maxLength(500)]);
+      } else {
+        motivo.clearValidators();
+        motivo.setValue('', { emitEvent: false });
+      }
+      motivo.updateValueAndValidity({ emitEvent: false });
     });
   }
 
@@ -229,7 +268,11 @@ export class SolicitudesComponent implements OnInit {
   get isAdmin() { return this.currentUser?.rol === 'ADMIN'; }
   get canGestionar() { return ['ADMIN', 'GESTOR_VCM'].includes(this.currentUser?.rol ?? ''); }
   get useAllEndpoint() { return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DOCENTE', 'DECANO'].includes(this.currentUser?.rol ?? ''); }
-  get canCreateSolicitud() { return ['ADMIN', 'GESTOR_VCM', 'CLIENTE'].includes(this.currentUser?.rol ?? ''); }
+  get canCreateSolicitud() { return ['ADMIN', 'GESTOR_VCM', 'CLIENTE', 'DOCENTE'].includes(this.currentUser?.rol ?? ''); }
+  /** El docente propone una iniciativa propia: indica con quién trabaja y su carrera es la suya. */
+  get esDocente() { return this.currentUser?.rol === 'DOCENTE'; }
+  /** En el formulario, ¿se muestran los campos de iniciativa de docente? (al ver/editar depende de la solicitud) */
+  get formIniciativa(): boolean { return this.editingItem ? this.editingItem.origen === 'DOCENTE' : this.esDocente; }
   get gestionarEstadoValue(): string { return this.gestionarForm.get('estado')?.value ?? ''; }
 
   canEdit(s: Solicitud): boolean {
@@ -243,6 +286,24 @@ export class SolicitudesComponent implements OnInit {
   ngOnInit(): void {
     this.loadCarrerasDropdown();
     this.loadItems();
+    if (this.canCreateSolicitud) {
+      this.usuariosService.getMiPerfil().subscribe({
+        next: (u) => {
+          this.telefonoPerfil = u.telefono ?? '';
+          // Si el formulario nuevo ya se abrió antes de que llegara el perfil, se completa ahora
+          const tel = this.form.get('telefono');
+          if (this.dialogVisible && !this.editingItem && !this.reenviando && tel && !tel.value && this.telefonoPerfil) {
+            tel.setValue(this.telefonoPerfil);
+          }
+          this.cdr.detectChanges();
+        },
+        error: () => {},
+      });
+    }
+    // Desde el inicio del solicitante: /dashboard/solicitudes?nueva=1 abre el formulario
+    if (this.route.snapshot.queryParamMap.get('nueva') && this.canCreateSolicitud) {
+      this.openCreate();
+    }
   }
 
   loadCarrerasDropdown(): void {
@@ -320,7 +381,8 @@ export class SolicitudesComponent implements OnInit {
     this.selectedCiudad = null;
     this.fechaDesde = '';
     this.fechaHasta = '';
-    this.rangoFechas = null;
+    this.desdeDate = null;
+    this.hastaDate = null;
     this.solicitanteTexto = '';
     this.currentPage = 1;
     this.loadItems();
@@ -332,7 +394,7 @@ export class SolicitudesComponent implements OnInit {
     if (key === 'facultad') { this.selectedFacultadId = null; this.selectedCarreraId = null; }
     if (key === 'carrera') this.selectedCarreraId = null;
     if (key === 'solicitante') this.solicitanteTexto = '';
-    if (key === 'fechas') { this.fechaDesde = ''; this.fechaHasta = ''; this.rangoFechas = null; }
+    if (key === 'fechas') { this.fechaDesde = ''; this.fechaHasta = ''; this.desdeDate = null; this.hastaDate = null; }
     this.onFilterChange();
   }
 
@@ -348,15 +410,63 @@ export class SolicitudesComponent implements OnInit {
     this.solicitanteTimer = setTimeout(() => this.onFilterChange(), 400);
   }
 
+  /** Solicitud rechazada que se está corrigiendo para enviarla de nuevo (crea una solicitud nueva). */
+  reenviando: Solicitud | null = null;
+
+  /** Solo quien hizo la solicitud puede corregirla y reenviarla, y solo si fue rechazada. */
+  canReenviar(sol: Solicitud): boolean {
+    return sol.estado === 'RECHAZADA' && sol.clienteId === this.currentUser?.id;
+  }
+
+  /**
+   * Abre el formulario de nueva solicitud con los datos de la rechazada ya cargados.
+   * La rechazada se conserva como registro; los archivos adjuntos deben subirse de nuevo.
+   */
+  corregirYReenviar(item: Solicitud): void {
+    this.openCreate();
+    this.reenviando = item;
+    this.form.patchValue({
+      titulo: item.titulo,
+      descripcion: item.descripcion,
+      ciudad: item.ciudad ?? null,
+      direccion: item.direccion ?? '',
+      numeroDireccion: item.numeroDireccion ?? '',
+      telefono: item.telefono ?? '',
+      tipoCliente: item.tipoCliente ?? null,
+      tipoClienteOtro: item.tipoClienteOtro ?? '',
+      nombreOrganizacion: item.nombreOrganizacion ?? '',
+      personasPrevistas: item.personasPrevistas ?? null,
+      facultadId: this.carrerasDropdown.find(c => c.id === item.carreraId)?.facultadId ?? null,
+      carreraId: item.carreraId ?? null,
+    });
+  }
+
+  /** La organización es obligatoria solo en iniciativas de docente. */
+  private aplicarValidacionIniciativa(): void {
+    const org = this.form.get('nombreOrganizacion')!;
+    org.setValidators(this.formIniciativa
+      ? [Validators.required, Validators.pattern(/\S/), Validators.maxLength(150)]
+      : [Validators.maxLength(150)]);
+    org.updateValueAndValidity({ emitEvent: false });
+    // La carrera del docente es fija: no se pide en el formulario
+    const carrera = this.form.get('carreraId')!;
+    carrera.setValue(this.formIniciativa ? null : carrera.value, { emitEvent: false });
+  }
+
   openCreate(): void {
+    this.reenviando = null;
+    this.evaluando = false;
     this.editingItem = null;
     this.viewOnly = false;
-    this.form.reset();
+    this.form.reset({ tipoClienteOtro: '', nombreOrganizacion: '', telefono: this.telefonoPerfil });
     this.form.enable();
+    this.aplicarValidacionIniciativa();
     this.dialogVisible = true;
   }
 
   openEdit(item: Solicitud, readonly = false): void {
+    this.reenviando = null;
+    this.evaluando = false;
     this.editingItem = item;
     this.viewOnly = readonly;
     this.form.patchValue({
@@ -366,6 +476,11 @@ export class SolicitudesComponent implements OnInit {
       direccion: item.direccion ?? '',
       numeroDireccion: item.numeroDireccion ?? '',
       telefono: item.telefono ?? '',
+      tipoCliente: item.tipoCliente ?? null,
+      tipoClienteOtro: item.tipoClienteOtro ?? '',
+      nombreOrganizacion: item.nombreOrganizacion ?? '',
+      personasPrevistas: item.personasPrevistas ?? null,
+      facultadId: this.carrerasDropdown.find(c => c.id === item.carreraId)?.facultadId ?? null,
       carreraId: item.carreraId ?? null,
     });
     if (readonly) {
@@ -373,6 +488,7 @@ export class SolicitudesComponent implements OnInit {
     } else {
       this.form.enable();
     }
+    this.aplicarValidacionIniciativa();
     this.dialogVisible = true;
   }
 
@@ -393,6 +509,12 @@ export class SolicitudesComponent implements OnInit {
         direccion: raw.direccion.trim(),
         numeroDireccion: raw.numeroDireccion?.trim() || null,
         telefono: raw.telefono.trim(),
+        tipoCliente: raw.tipoCliente,
+        tipoClienteOtro: raw.tipoCliente === 'OTRO' ? raw.tipoClienteOtro.trim() : undefined,
+        ...(this.formIniciativa && {
+          nombreOrganizacion: String(raw.nombreOrganizacion ?? '').trim(),
+          personasPrevistas: raw.personasPrevistas || undefined,
+        }),
         carreraId: raw.carreraId || undefined,
       };
       this.service.update(this.editingItem.id, dto).subscribe({
@@ -407,6 +529,12 @@ export class SolicitudesComponent implements OnInit {
         direccion: raw.direccion.trim(),
         numeroDireccion: raw.numeroDireccion?.trim() || undefined,
         telefono: raw.telefono.trim(),
+        tipoCliente: raw.tipoCliente,
+        tipoClienteOtro: raw.tipoCliente === 'OTRO' ? raw.tipoClienteOtro.trim() : undefined,
+        ...(this.formIniciativa && {
+          nombreOrganizacion: String(raw.nombreOrganizacion ?? '').trim(),
+          personasPrevistas: raw.personasPrevistas || undefined,
+        }),
         carreraId: raw.carreraId || undefined,
       };
       this.service.create(dto).subscribe({
@@ -517,10 +645,12 @@ export class SolicitudesComponent implements OnInit {
   
 
   // ── Gestionar ─────────────────────────────────────────────
+  /** Evaluar = abrir el detalle completo de la solicitud con el bloque de evaluación al final. */
   openGestionar(item: Solicitud): void {
+    this.openEdit(item, true);
     this.gestionarItem = item;
-    this.gestionarForm.reset();
-    this.gestionarDialogVisible = true;
+    this.gestionarForm.reset({ estado: null, facultadId: null, carreraId: null, motivoRechazo: '' });
+    this.evaluando = true;
   }
 
   saveGestionar(): void {
@@ -533,11 +663,13 @@ export class SolicitudesComponent implements OnInit {
     const dto: GestionarSolicitudDto = {
       estado: raw.estado,
       carreraId: raw.carreraId || undefined,
+      motivoRechazo: raw.estado === 'RECHAZADA' ? String(raw.motivoRechazo ?? '').trim() : undefined,
     };
     this.service.gestionar(this.gestionarItem!.id, dto).subscribe({
       next: () => {
         this.messageService.add({ severity: 'success', summary: 'Éxito', detail: 'Solicitud gestionada correctamente', life: 3000 });
-        this.gestionarDialogVisible = false;
+        this.dialogVisible = false;
+        this.evaluando = false;
         this.gestionarSaving = false;
         this.cdr.detectChanges();
         this.currentPage = 1;

@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoSolicitud, Role } from '@prisma/client';
+import { EstadoSolicitud, EtapaSeguimiento, OrigenSolicitud, Role } from '@prisma/client';
+import { registrarEtapa } from '../common/seguimiento';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -31,12 +32,13 @@ export class SolicitudesService {
 
     /** Filtros comunes del listado: estado, ciudad, facultad, fechas, solicitante y orden. */
   private buildFilters(query: QuerySolicitudesDto) {
-    const { estado, ciudad, facultadId, fechaDesde, fechaHasta, solicitante, orden } = query;
+    const { estado, ciudad, facultadId, fechaDesde, fechaHasta, solicitante, orden, sinPlanteamiento } = query;
     const where: Record<string, unknown> = {};
 
     if (estado !== undefined) where.estado = estado;
     if (ciudad) where.ciudad = ciudad;
     if (facultadId !== undefined) where.carrera = { facultadId };
+    if (sinPlanteamiento) where.planteamiento = { is: null };
 
     if (fechaDesde || fechaHasta) {
       const createdAt: { gte?: Date; lte?: Date } = {};
@@ -123,6 +125,94 @@ export class SolicitudesService {
     };
   }
 
+  /**
+   * Resumen para el solicitante: contadores y, por cada solicitud reciente, una línea de tiempo
+   * simple (Recibida → Aprobada → En planteamiento → En ejecución → Finalizada).
+   * Solo expone etapas y fechas; ningún dato interno (docente, observaciones).
+   */
+  async miResumen(clienteId: number) {
+    const [total, pendientes, aprobadas, rechazadas, recientes] = await Promise.all([
+      this.prisma.solicitud.count({ where: { clienteId } }),
+      this.prisma.solicitud.count({ where: { clienteId, estado: EstadoSolicitud.PENDIENTE } }),
+      this.prisma.solicitud.count({ where: { clienteId, estado: EstadoSolicitud.APROBADA } }),
+      this.prisma.solicitud.count({ where: { clienteId, estado: EstadoSolicitud.RECHAZADA } }),
+      this.prisma.solicitud.findMany({
+        where: { clienteId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          titulo: true,
+          estado: true,
+          motivoRechazo: true,
+          createdAt: true,
+          planteamiento: { select: { id: true, proyecto: { select: { estado: true } } } },
+          historial: { select: { etapa: true, fecha: true }, orderBy: { fecha: 'asc' } },
+        },
+      }),
+    ]);
+
+    const solicitudes = recientes.map((s) => ({
+      id: s.id,
+      titulo: s.titulo,
+      estado: s.estado,
+      motivoRechazo: s.motivoRechazo,
+      createdAt: s.createdAt,
+      pasos: this.armarPasos(s),
+    }));
+
+    return {
+      data: { total, pendientes, aprobadas, rechazadas, solicitudes },
+      message: 'Resumen obtenido exitosamente',
+      statusCode: 200,
+    };
+  }
+
+  private armarPasos(s: {
+    estado: EstadoSolicitud;
+    createdAt: Date;
+    planteamiento: { proyecto: { estado: string } | null } | null;
+    historial: { etapa: EtapaSeguimiento; fecha: Date }[];
+  }) {
+    // Fecha del primer (o último) registro de una etapa; null si aún no existe
+    const fechaDe = (etapa: EtapaSeguimiento, ultima = false): Date | null => {
+      const regs = s.historial.filter((h) => h.etapa === etapa);
+      if (!regs.length) return null;
+      return (ultima ? regs[regs.length - 1] : regs[0]).fecha;
+    };
+
+    type Estado = 'hecho' | 'actual' | 'pendiente' | 'rechazado';
+    const pasos: { clave: string; label: string; fecha: Date | null; estado: Estado }[] = [
+      { clave: 'RECIBIDA', label: 'Recibida', fecha: fechaDe(EtapaSeguimiento.SOLICITUD_CREADA) ?? s.createdAt, estado: 'hecho' },
+    ];
+
+    if (s.estado === EstadoSolicitud.RECHAZADA) {
+      pasos.push({ clave: 'RECHAZADA', label: 'Rechazada', fecha: fechaDe(EtapaSeguimiento.SOLICITUD_RECHAZADA, true), estado: 'rechazado' });
+      return pasos;
+    }
+
+    const proyecto = s.planteamiento?.proyecto ?? null;
+    const aprobada = s.estado === EstadoSolicitud.APROBADA;
+    const hecho = (b: boolean): Estado => (b ? 'hecho' : 'pendiente');
+
+    pasos.push(
+      { clave: 'APROBADA', label: 'Aprobada', fecha: fechaDe(EtapaSeguimiento.SOLICITUD_APROBADA), estado: hecho(aprobada) },
+      { clave: 'PLANTEAMIENTO', label: 'En planteamiento', fecha: fechaDe(EtapaSeguimiento.PLANTEAMIENTO_CREADO), estado: hecho(!!s.planteamiento) },
+      { clave: 'EJECUCION', label: 'En ejecución', fecha: fechaDe(EtapaSeguimiento.PROYECTO_EN_PROCESO), estado: hecho(!!proyecto) },
+    );
+
+    if (proyecto?.estado === 'CANCELADO') {
+      pasos.push({ clave: 'CANCELADA', label: 'Cancelada', fecha: fechaDe(EtapaSeguimiento.PROYECTO_CANCELADO, true), estado: 'rechazado' });
+    } else {
+      pasos.push({ clave: 'FINALIZADA', label: 'Finalizada', fecha: fechaDe(EtapaSeguimiento.PROYECTO_FINALIZADO, true), estado: hecho(proyecto?.estado === 'FINALIZADO') });
+    }
+
+    // El primer paso pendiente es la etapa en la que está hoy
+    const siguiente = pasos.find((p) => p.estado === 'pendiente');
+    if (siguiente) siguiente.estado = 'actual';
+    return pasos;
+  }
+
   async findOne(id: number, currentUser: CurrentUser) {
     const solicitud = await this.prisma.solicitud.findUnique({
       where: { id },
@@ -138,9 +228,23 @@ export class SolicitudesService {
     return { data: solicitud, message: 'Solicitud obtenida exitosamente', statusCode: 200 };
   }
 
-  async create(dto: CreateSolicitudDto, clienteId: number) {
-    if (dto.carreraId !== undefined) {
-      const carrera = await this.prisma.carrera.findUnique({ where: { id: dto.carreraId } });
+  async create(dto: CreateSolicitudDto, currentUser: CurrentUser) {
+    const clienteId = currentUser.id;
+    const esDocente = currentUser.rol === Role.DOCENTE;
+    let carreraId = dto.carreraId;
+
+    if (esDocente) {
+      // Iniciativa del docente: va asociada a su propia carrera y debe indicar con quién se trabaja
+      const docente = await this.prisma.user.findUnique({ where: { id: clienteId }, select: { carreraId: true } });
+      if (!docente?.carreraId) {
+        throw new BadRequestException('Tu usuario no tiene una carrera asignada. Pide a un administrador que la asigne.');
+      }
+      if (!dto.nombreOrganizacion?.trim()) {
+        throw new BadRequestException('Indica la organización o grupo con el que trabajarás');
+      }
+      carreraId = docente.carreraId;
+    } else if (carreraId !== undefined) {
+      const carrera = await this.prisma.carrera.findUnique({ where: { id: carreraId } });
       if (!carrera) throw new NotFoundException('Carrera no encontrada');
     }
 
@@ -152,12 +256,19 @@ export class SolicitudesService {
         direccion: dto.direccion,
         numeroDireccion: dto.numeroDireccion,
         telefono: dto.telefono,
-        carreraId: dto.carreraId,
+        tipoCliente: dto.tipoCliente,
+        tipoClienteOtro: dto.tipoCliente === 'OTRO' ? dto.tipoClienteOtro?.trim() : null,
+        origen: esDocente ? OrigenSolicitud.DOCENTE : OrigenSolicitud.EXTERNA,
+        nombreOrganizacion: esDocente ? dto.nombreOrganizacion?.trim() : null,
+        personasPrevistas: esDocente ? dto.personasPrevistas : null,
+        carreraId,
         clienteId,
         estado: EstadoSolicitud.PENDIENTE,
       },
       include: SOLICITUD_INCLUDE,
     });
+
+    await registrarEtapa(this.prisma, solicitud.id, EtapaSeguimiento.SOLICITUD_CREADA, clienteId);
 
     return { data: solicitud, message: 'Solicitud creada', statusCode: 201 };
   }
@@ -175,9 +286,15 @@ export class SolicitudesService {
       }
     }
 
-    if (dto.carreraId !== undefined) {
+    const esIniciativaDocente = solicitud.origen === OrigenSolicitud.DOCENTE;
+
+    // En una iniciativa de docente la carrera no se cambia (es la del docente)
+    if (!esIniciativaDocente && dto.carreraId !== undefined) {
       const carrera = await this.prisma.carrera.findUnique({ where: { id: dto.carreraId } });
       if (!carrera) throw new NotFoundException('Carrera no encontrada');
+    }
+    if (esIniciativaDocente && dto.nombreOrganizacion !== undefined && !dto.nombreOrganizacion.trim()) {
+      throw new BadRequestException('Indica la organización o grupo con el que trabajarás');
     }
 
     const updated = await this.prisma.solicitud.update({
@@ -189,7 +306,11 @@ export class SolicitudesService {
         direccion: dto.direccion,
         numeroDireccion: dto.numeroDireccion,
         telefono: dto.telefono,
-        carreraId: dto.carreraId,
+        tipoCliente: dto.tipoCliente,
+        tipoClienteOtro: dto.tipoCliente === undefined ? undefined : dto.tipoCliente === 'OTRO' ? dto.tipoClienteOtro?.trim() : null,
+        nombreOrganizacion: esIniciativaDocente ? dto.nombreOrganizacion?.trim() : undefined,
+        personasPrevistas: esIniciativaDocente ? dto.personasPrevistas : undefined,
+        carreraId: esIniciativaDocente ? undefined : dto.carreraId,
       },
       include: SOLICITUD_INCLUDE,
     });
@@ -197,7 +318,7 @@ export class SolicitudesService {
     return { data: updated, message: 'Solicitud actualizada', statusCode: 200 };
   }
 
-  async gestionar(id: number, dto: GestionarSolicitudDto) {
+  async gestionar(id: number, dto: GestionarSolicitudDto, usuarioId?: number) {
     const solicitud = await this.prisma.solicitud.findUnique({ where: { id } });
     if (!solicitud) throw new NotFoundException(`Solicitud con id ${id} no encontrada`);
 
@@ -210,10 +331,20 @@ export class SolicitudesService {
       where: { id },
       data: {
         estado: dto.estado,
+        // el motivo solo existe cuando está rechazada; en cualquier otro caso se limpia
+        motivoRechazo: dto.estado === EstadoSolicitud.RECHAZADA ? dto.motivoRechazo?.trim() || null : null,
         ...(dto.carreraId !== undefined && { carreraId: dto.carreraId }),
       },
       include: SOLICITUD_INCLUDE,
     });
+
+    if (dto.estado !== solicitud.estado) {
+      if (dto.estado === EstadoSolicitud.APROBADA) {
+        await registrarEtapa(this.prisma, id, EtapaSeguimiento.SOLICITUD_APROBADA, usuarioId);
+      } else if (dto.estado === EstadoSolicitud.RECHAZADA) {
+        await registrarEtapa(this.prisma, id, EtapaSeguimiento.SOLICITUD_RECHAZADA, usuarioId);
+      }
+    }
 
     if (dto.estado === EstadoSolicitud.APROBADA || dto.estado === EstadoSolicitud.RECHAZADA) {
       this.mailService
@@ -222,6 +353,7 @@ export class SolicitudesService {
           nombreCliente: `${updated.cliente.nombres} ${updated.cliente.apellidos}`,
           tituloSolicitud: updated.titulo,
           estado: dto.estado as 'APROBADA' | 'RECHAZADA',
+          motivo: updated.motivoRechazo ?? undefined,
         })
         .catch((err) => console.error('[SolicitudesService] Error enviando notificación:', err));
     }

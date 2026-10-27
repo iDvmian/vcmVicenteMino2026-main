@@ -18,15 +18,22 @@ export class NavbarComponent {
     return this.authService.getCurrentUser();
   }
 
-  // Facultades y Carreras no se muestran al solicitante (CLIENTE).
+  /** Decano y Admin ven el panel de indicadores; el resto, su pantalla de inicio. */
+  get inicioLabel(): string {
+    const rol = this.currentUser?.rol;
+    return rol === 'DECANO' || rol === 'ADMIN' ? 'Panel de indicadores' : 'Inicio';
+  }
+
+  // Facultades, Carreras y Usuarios son de configuración: no se muestran al solicitante
+  // (CLIENTE), al encargado de carrera ni al docente.
   get showFacultadesCarreras(): boolean {
     const rol = this.authService.getCurrentUser()?.rol;
-    return !!rol && rol !== 'CLIENTE';
+    return !!rol && rol !== 'CLIENTE' && rol !== 'ENCARGADO_CARRERA' && rol !== 'DOCENTE';
   }
 
   get showUsuarios(): boolean {
     const rol = this.authService.getCurrentUser()?.rol;
-    return !!rol && rol !== 'CLIENTE';
+    return !!rol && rol !== 'CLIENTE' && rol !== 'ENCARGADO_CARRERA' && rol !== 'DOCENTE';
   }
 
   get showAlumnosVoluntarios(): boolean {
@@ -37,6 +44,11 @@ export class NavbarComponent {
   get showPlanteamientos(): boolean {
     const rol = this.authService.getCurrentUser()?.rol;
     return !!rol && rol !== 'CLIENTE';
+  }
+
+  /** Historial de vinculaciones propias: solo para docentes. */
+  get showMisVinculaciones(): boolean {
+    return this.authService.getCurrentUser()?.rol === 'DOCENTE';
   }
 
   get showProyectos(): boolean {

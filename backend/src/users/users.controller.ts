@@ -44,8 +44,6 @@ export class UsersController {
   @Roles(
     Role.ADMIN,
     Role.GESTOR_VCM,
-    Role.ENCARGADO_CARRERA,
-    Role.DOCENTE,
     Role.DECANO,
   )
   @ApiOperation({ summary: 'Listar todos los usuarios (paginado, con filtros opcionales)' })

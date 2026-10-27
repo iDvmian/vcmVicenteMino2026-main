@@ -131,7 +131,9 @@ export class ProyectosComponent implements OnInit {
         alumnoIds: [{ value: [], disabled: true }],
         participantesDocentes: [null, [Validators.min(0), Validators.max(100000)]],
         participantesEstudiantes: [null, [Validators.min(0), Validators.max(100000)]],
-        participantesExternos: [null, [Validators.min(0), Validators.max(100000)]],
+        participantesDocentesExternos: [null, [Validators.min(0), Validators.max(100000)]],
+        participantesAlumnosExternos: [null, [Validators.min(0), Validators.max(100000)]],
+        participantesOtrosExternos: [null, [Validators.min(0), Validators.max(100000)]],
       },
       { validators: fechaRangeValidator },
     );
@@ -409,7 +411,7 @@ export class ProyectosComponent implements OnInit {
   // ── Crear / Editar ──────────────────────────────────────────
   openCreate(): void {
     this.editingItem = null;
-    this.form.reset({ planteamientoId: null, fechaInicio: '', fechaFin: '', alumnoIds: [], participantesDocentes: null, participantesEstudiantes: null, participantesExternos: null });
+    this.form.reset({ planteamientoId: null, fechaInicio: '', fechaFin: '', alumnoIds: [], participantesDocentes: null, participantesEstudiantes: null, participantesDocentesExternos: null, participantesAlumnosExternos: null, participantesOtrosExternos: null });
     this.form.get('planteamientoId')?.enable();
     this.form.get('alumnoIds')?.disable();
     this.alumnoOptions = [];
@@ -425,7 +427,9 @@ export class ProyectosComponent implements OnInit {
       alumnoIds: item.alumnos?.map(pa => pa.alumnoId) ?? [],
       participantesDocentes: item.participantesDocentes ?? null,
       participantesEstudiantes: item.participantesEstudiantes ?? null,
-      participantesExternos: item.participantesExternos ?? null,
+      participantesDocentesExternos: item.participantesDocentesExternos ?? null,
+      participantesAlumnosExternos: item.participantesAlumnosExternos ?? null,
+      participantesOtrosExternos: item.participantesOtrosExternos ?? null,
     });
     // planteamientoId es readonly al editar (el backend no lo acepta en PATCH).
     this.form.get('planteamientoId')?.disable();
@@ -445,11 +449,11 @@ export class ProyectosComponent implements OnInit {
   /** Total de personas alcanzadas (solo para mostrar; no se guarda en la base). */
   get totalParticipantes(): number {
     const g = (k: string) => Number(this.form.get(k)?.value) || 0;
-    return g('participantesDocentes') + g('participantesEstudiantes') + g('participantesExternos');
+    return g('participantesDocentes') + g('participantesEstudiantes') + g('participantesDocentesExternos') + g('participantesAlumnosExternos') + g('participantesOtrosExternos');
   }
 
   totalDe(p: Proyecto): number {
-    return (p.participantesDocentes ?? 0) + (p.participantesEstudiantes ?? 0) + (p.participantesExternos ?? 0);
+    return (p.participantesDocentes ?? 0) + (p.participantesEstudiantes ?? 0) + (p.participantesDocentesExternos ?? 0) + (p.participantesAlumnosExternos ?? 0) + (p.participantesOtrosExternos ?? 0);
   }
 
   save(): void {
@@ -468,7 +472,9 @@ export class ProyectosComponent implements OnInit {
         // Vacío = null, para que al borrar un número también se borre en la base
         participantesDocentes: this.numOrNull(raw.participantesDocentes),
         participantesEstudiantes: this.numOrNull(raw.participantesEstudiantes),
-        participantesExternos: this.numOrNull(raw.participantesExternos),
+        participantesDocentesExternos: this.numOrNull(raw.participantesDocentesExternos),
+        participantesAlumnosExternos: this.numOrNull(raw.participantesAlumnosExternos),
+        participantesOtrosExternos: this.numOrNull(raw.participantesOtrosExternos),
       };
       this.service.update(this.editingItem.id, dto).subscribe({
         next: () => this.onSaveSuccess('Proyecto actualizado'),
@@ -482,7 +488,9 @@ export class ProyectosComponent implements OnInit {
         alumnoIds: raw.alumnoIds ?? [],
         participantesDocentes: this.numOrNull(raw.participantesDocentes) ?? undefined,
         participantesEstudiantes: this.numOrNull(raw.participantesEstudiantes) ?? undefined,
-        participantesExternos: this.numOrNull(raw.participantesExternos) ?? undefined,
+        participantesDocentesExternos: this.numOrNull(raw.participantesDocentesExternos) ?? undefined,
+        participantesAlumnosExternos: this.numOrNull(raw.participantesAlumnosExternos) ?? undefined,
+        participantesOtrosExternos: this.numOrNull(raw.participantesOtrosExternos) ?? undefined,
       };
       this.service.create(dto).subscribe({
         next: () => this.onSaveSuccess('Proyecto creado'),
@@ -642,6 +650,11 @@ export class ProyectosComponent implements OnInit {
   }
 
   // ── Utilidades ──────────────────────────────────────────────
+  /** Texto del estado en mayúsculas y sin guion bajo (EN_PROCESO -> "EN PROCESO"). */
+  estadoLabel(estado: EstadoProyecto): string {
+    return (this.estadoOptions.find((o) => o.value === estado)?.label ?? estado).toUpperCase();
+  }
+
   getEstadoStyle(estado: EstadoProyecto): Record<string, string> {
     const colors: Record<EstadoProyecto, string> = {
       EN_PROCESO: 'var(--ucm-celeste)',

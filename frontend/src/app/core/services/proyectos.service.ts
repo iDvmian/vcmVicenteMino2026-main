@@ -13,7 +13,9 @@ export interface CreateProyectoDto {
   alumnoIds?: number[];
   participantesDocentes?: number;
   participantesEstudiantes?: number;
-  participantesExternos?: number;
+  participantesDocentesExternos?: number;
+  participantesAlumnosExternos?: number;
+  participantesOtrosExternos?: number;
 }
 
 export interface UpdateProyectoDto {
@@ -23,7 +25,9 @@ export interface UpdateProyectoDto {
   // null = vaciar el dato
   participantesDocentes?: number | null;
   participantesEstudiantes?: number | null;
-  participantesExternos?: number | null;
+  participantesDocentesExternos?: number | null;
+  participantesAlumnosExternos?: number | null;
+  participantesOtrosExternos?: number | null;
 }
 
 export interface UpdateEstadoProyectoDto {

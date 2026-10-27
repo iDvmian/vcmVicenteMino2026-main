@@ -227,6 +227,12 @@
     font-size: 12px;
     color: var(--ucm-muted);
     margin-top: 4px;
+
+    &--inline {
+      display: inline;
+      margin-top: 0;
+      font-weight: 400;
+    }
   }
 
   &__error {
@@ -473,4 +479,44 @@
 
 .filters__field--fechas {
   min-width: 280px;
+}
+
+
+// ── Evaluación dentro del detalle ────────────────────────────
+.motivo-box {
+  padding: 10px 12px;
+  background: #fef2f2;
+  border-left: 3px solid var(--ucm-danger);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--ucm-texto);
+  white-space: pre-wrap;
+}
+
+.eval {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ucm-borde);
+
+  &__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ucm-azul);
+  }
+}
+
+.tag-iniciativa {
+  display: block;
+  width: fit-content;
+  margin-top: 0.2rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 0.7rem;
+  font-weight: 600;
 }

@@ -62,7 +62,7 @@
             {{ getProyectoTitulo(proy) }}
           </td>
           <td class="col-estado">
-            <p-tag [value]="proy.estado" [style]="getEstadoStyle(proy.estado)" />
+            <p-tag [value]="estadoLabel(proy.estado)" [style]="getEstadoStyle(proy.estado)" />
           </td>
           <td class="col-fecha">{{ proy.fechaInicio | date: 'dd/MM/yyyy' }}</td>
           <td class="col-fecha">{{ proy.fechaFin | date: 'dd/MM/yyyy' }}</td>
@@ -189,7 +189,7 @@
       <!-- Participantes de la intervención -->
       <div class="field field--full">
         <label class="field__label">Personas alcanzadas por la intervención</label>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
           <div>
             <small class="field__hint">Docentes</small>
             <input type="number" min="0" formControlName="participantesDocentes" placeholder="0" class="field__input field__date field__number" />
@@ -199,13 +199,21 @@
             <input type="number" min="0" formControlName="participantesEstudiantes" placeholder="0" class="field__input field__date field__number" />
           </div>
           <div>
-            <small class="field__hint">Externos a la U</small>
-            <input type="number" min="0" formControlName="participantesExternos" placeholder="0" class="field__input field__date field__number" />
+            <small class="field__hint">Docentes externos</small>
+            <input type="number" min="0" formControlName="participantesDocentesExternos" placeholder="0" class="field__input field__date field__number" />
+          </div>
+          <div>
+            <small class="field__hint">Alumnos externos</small>
+            <input type="number" min="0" formControlName="participantesAlumnosExternos" placeholder="0" class="field__input field__date field__number" />
+          </div>
+          <div>
+            <small class="field__hint">Otros externos (comunidad, vecinos)</small>
+            <input type="number" min="0" formControlName="participantesOtrosExternos" placeholder="0" class="field__input field__date field__number" />
           </div>
         </div>
         <small class="field__hint">Total: {{ totalParticipantes }} personas</small>
         <small class="field__error"
-          *ngIf="(form.get('participantesDocentes')?.invalid || form.get('participantesEstudiantes')?.invalid || form.get('participantesExternos')?.invalid)">
+          *ngIf="(form.get('participantesDocentes')?.invalid || form.get('participantesEstudiantes')?.invalid || form.get('participantesDocentesExternos')?.invalid || form.get('participantesAlumnosExternos')?.invalid || form.get('participantesOtrosExternos')?.invalid)">
           Ingresa números enteros entre 0 y 100000
         </small>
       </div>
@@ -264,7 +272,7 @@
       </div>
       <div class="detail__item">
         <span class="detail__label">Estado</span>
-        <p-tag [value]="detailItem.estado" [style]="getEstadoStyle(detailItem.estado)" />
+        <p-tag [value]="estadoLabel(detailItem.estado)" [style]="getEstadoStyle(detailItem.estado)" />
       </div>
       <div class="detail__item">
         <span class="detail__label">Docente</span>
@@ -287,8 +295,16 @@
         <span class="detail__value">{{ detailItem.participantesEstudiantes ?? '—' }}</span>
       </div>
       <div class="detail__item">
-        <span class="detail__label">Externos a la U</span>
-        <span class="detail__value">{{ detailItem.participantesExternos ?? '—' }}</span>
+        <span class="detail__label">Docentes externos</span>
+        <span class="detail__value">{{ detailItem.participantesDocentesExternos ?? '—' }}</span>
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Alumnos externos</span>
+        <span class="detail__value">{{ detailItem.participantesAlumnosExternos ?? '—' }}</span>
+      </div>
+      <div class="detail__item">
+        <span class="detail__label">Otros externos</span>
+        <span class="detail__value">{{ detailItem.participantesOtrosExternos ?? '—' }}</span>
       </div>
       <div class="detail__item">
         <span class="detail__label">Total de personas alcanzadas</span>

@@ -25,6 +25,53 @@
       [style]="{ 'min-width': '200px' }"
       appendTo="body"
     />
+    <p-select
+      [(ngModel)]="selectedTipo"
+      (ngModelChange)="onFilterChange()"
+      [options]="tiposIntervencion"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Tipo de intervención"
+      [showClear]="true"
+      [style]="{ 'min-width': '230px' }"
+      [scrollHeight]="'260px'"
+      appendTo="body"
+    />
+    <input
+      *ngIf="useAllEndpoint"
+      pInputText
+      type="text"
+      class="filter-search"
+      [(ngModel)]="docenteTexto"
+      (ngModelChange)="onDocenteInput()"
+      placeholder="Buscar docente (nombre o correo)"
+    />
+    <p-datepicker
+      [(ngModel)]="desdeDate"
+      [maxDate]="hastaDate"
+      [readonlyInput]="true"
+      dateFormat="dd/mm/yy"
+      placeholder="Fecha de inicio"
+      [showIcon]="true"
+      [showButtonBar]="true"
+      appendTo="body"
+      [style]="{ 'width': '170px' }"
+      (onSelect)="onFechasChange()"
+      (onClear)="onFechasChange()"
+    />
+    <p-datepicker
+      [(ngModel)]="hastaDate"
+      [minDate]="desdeDate"
+      [readonlyInput]="true"
+      dateFormat="dd/mm/yy"
+      placeholder="Fecha de fin"
+      [showIcon]="true"
+      [showButtonBar]="true"
+      appendTo="body"
+      [style]="{ 'width': '170px' }"
+      (onSelect)="onFechasChange()"
+      (onClear)="onFechasChange()"
+    />
     <button class="btn-secondary" type="button" (click)="clearFilters()">
       <i class="ti ti-filter-off"></i>
       Limpiar filtros
@@ -104,10 +151,10 @@
                 <i class="ti ti-trash"></i>
               </button>
               <button
-                *ngIf="canGestionar"
+                *ngIf="canEvaluar(plan)"
                 class="btn-icon btn-icon--manage"
                 (click)="openGestionar(plan)"
-                title="Gestionar"
+                title="Evaluar planteamiento"
               >
                 <i class="ti ti-checks"></i>
               </button>
@@ -141,6 +188,13 @@
 >
   <form [formGroup]="form">
     <div class="form-grid">
+
+      <!-- Motivo del rechazo (se ve al consultar o al corregir un planteamiento rechazado) -->
+      <div class="field field--full" *ngIf="editingItem && editingItem.estado === 'RECHAZADO' && editingItem.motivoRechazo">
+        <label class="field__label">Motivo del rechazo</label>
+        <div class="motivo-box">{{ editingItem.motivoRechazo }}</div>
+        <small class="motivo-hint" *ngIf="!viewOnly">Corrige lo necesario y guarda: el planteamiento volverá a quedar pendiente para una nueva evaluación.</small>
+      </div>
 
       <!-- Solicitud (dropdown en crear, texto en editar/ver) -->
       <div class="field field--full">
@@ -328,7 +382,7 @@
         [disabled]="saving"
       >
         <i class="ti ti-device-floppy"></i>
-        {{ saving ? 'Guardando…' : 'Guardar' }}
+        {{ saving ? 'Guardando…' : (editingItem?.estado === 'RECHAZADO' ? 'Guardar y reenviar' : 'Guardar') }}
       </button>
     </div>
   </ng-template>
@@ -340,8 +394,8 @@
   [modal]="true"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: '420px' }"
-  header="Gestionar planteamiento"
+  [style]="{ width: '480px', maxWidth: '95vw' }"
+  header="Evaluar planteamiento"
 >
   <p class="gestionar-info" *ngIf="gestionarItem">
     <strong>Planteamiento #{{ gestionarItem.id }}</strong>
@@ -363,6 +417,22 @@
         />
         <small class="field__error" *ngIf="gestionarForm.get('estado')?.invalid && gestionarForm.get('estado')?.touched">
           El estado es requerido
+        </small>
+      </div>
+
+      <!-- Motivo (obligatorio al RECHAZAR) -->
+      <div class="field field--full" *ngIf="gestionarForm.get('estado')?.value === 'RECHAZADO'">
+        <label class="field__label">¿Por qué se rechaza este planteamiento? <span class="required">*</span></label>
+        <textarea
+          formControlName="motivoRechazo"
+          rows="4"
+          maxlength="500"
+          placeholder="Explica el motivo; lo verá el docente y se le enviará por correo"
+          class="field__input field__textarea"
+        ></textarea>
+        <small class="motivo-hint">{{ gestionarForm.get('motivoRechazo')?.value?.length || 0 }}/500</small>
+        <small class="field__error" *ngIf="gestionarForm.get('motivoRechazo')?.invalid && gestionarForm.get('motivoRechazo')?.touched">
+          Debes indicar el motivo del rechazo
         </small>
       </div>
     </div>

@@ -120,7 +120,12 @@ export class AlumnosVoluntariosComponent implements OnInit {
   loadCarrerasDropdown(): void {
     this.carrerasService.getCarreras({ limit: 100 }).subscribe({
       next: (res) => {
-        this.carrerasDropdown = res.items.map((c) => ({
+        // El encargado y el docente solo ven alumnos de su propia carrera
+        const user = this.authService.getCurrentUser();
+        const items = user?.rol === 'ENCARGADO_CARRERA' || user?.rol === 'DOCENTE'
+          ? res.items.filter((c) => c.id === user.carreraId)
+          : res.items;
+        this.carrerasDropdown = items.map((c) => ({
           ...c,
           label: `${c.nombre} (${c.facultad?.etiqueta ?? ''})`,
         }));
@@ -173,7 +178,10 @@ export class AlumnosVoluntariosComponent implements OnInit {
 
   openCreate(): void {
     this.editingItem = null;
-    this.form.reset({ estado: true });
+    this.form.reset({
+      estado: true,
+      carreraId: this.carrerasDropdown.length === 1 ? this.carrerasDropdown[0].id : null,
+    });
     this.dialogVisible = true;
   }
 

@@ -42,7 +42,9 @@ export interface Proyecto {
   fechaFin: string;
   participantesDocentes?: number | null;
   participantesEstudiantes?: number | null;
-  participantesExternos?: number | null;
+  participantesDocentesExternos?: number | null;
+  participantesAlumnosExternos?: number | null;
+  participantesOtrosExternos?: number | null;
   planteamientoId: number;
   // El docente y la carrera NO vienen a nivel raíz: se derivan de
   // planteamiento.docente / planteamiento.solicitud.carrera respectivamente.

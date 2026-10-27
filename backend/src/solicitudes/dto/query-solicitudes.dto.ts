@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { EstadoSolicitud } from '@prisma/client';
-import { Type } from 'class-transformer';
-import { IsEnum, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export class QuerySolicitudesDto {
   @ApiPropertyOptional({ enum: EstadoSolicitud, example: EstadoSolicitud.PENDIENTE })
@@ -36,6 +36,12 @@ export class QuerySolicitudesDto {
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'fechaHasta debe tener formato AAAA-MM-DD' })
   fechaHasta?: string;
+
+  @ApiPropertyOptional({ example: true, description: 'Solo solicitudes que aún no tienen planteamiento' })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  sinPlanteamiento?: boolean;
 
   @ApiPropertyOptional({ example: 'Rosa', description: 'Nombre, apellido o correo del solicitante' })
   @IsOptional()

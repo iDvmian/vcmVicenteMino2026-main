@@ -33,3 +33,18 @@ export const noClienteGuard: CanActivateFn = () => {
   }
   return true;
 };
+
+/** Bloquea rutas de configuración (facultades, carreras, usuarios) para el solicitante, el encargado de carrera y el docente */
+export const soloGestionGuard: CanActivateFn = () => {
+  const router = inject(Router);
+  try {
+    const user = JSON.parse(localStorage.getItem('vcm_user') ?? 'null');
+    if (user?.rol === 'CLIENTE' || user?.rol === 'ENCARGADO_CARRERA' || user?.rol === 'DOCENTE') {
+      router.navigate(['/dashboard']);
+      return false;
+    }
+  } catch {
+    // si el dato guardado está dañado, se deja pasar: el backend igual valida los permisos
+  }
+  return true;
+};

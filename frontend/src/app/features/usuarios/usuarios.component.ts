@@ -57,8 +57,8 @@ export class UsuariosComponent implements OnInit {
 
   readonly rolOptions: { label: string; value: Role }[] = [
     { label: 'ADMIN', value: 'ADMIN' },
-    { label: 'GESTOR_VCM', value: 'GESTOR_VCM' },
-    { label: 'ENCARGADO_CARRERA', value: 'ENCARGADO_CARRERA' },
+    { label: 'GESTOR VCM', value: 'GESTOR_VCM' },
+    { label: 'ENCARGADO CARRERA', value: 'ENCARGADO_CARRERA' },
     { label: 'DOCENTE', value: 'DOCENTE' },
     { label: 'DECANO', value: 'DECANO' },
     { label: 'CLIENTE', value: 'CLIENTE' },

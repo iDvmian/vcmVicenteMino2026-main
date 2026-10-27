@@ -1,23 +1,76 @@
 <p-toast position="top-right" />
 
 <div class="page">
-  <div class="report-card">
-    <div class="report-card__icon">
-      <i class="ti ti-file-type-pdf"></i>
+  <header class="page__header">
+    <h1 class="page__title"><i class="ti ti-report"></i> Reportes</h1>
+    <p class="page__subtitle">Elige qué quieres reportar, filtra los datos y descarga el PDF.</p>
+  </header>
+
+  <!-- 1. Qué reportar -->
+  <section class="card">
+    <h2 class="card__title">1. ¿Qué quieres reportar?</h2>
+    <div class="tipos">
+      <button
+        type="button"
+        class="tipo"
+        *ngFor="let t of tiposReporte"
+        [class.tipo--activo]="tipo === t.value"
+        (click)="seleccionarTipo(t.value)"
+      >
+        <i class="ti {{ t.icon }} tipo__icon"></i>
+        <span class="tipo__label">{{ t.label }}</span>
+        <span class="tipo__desc">{{ t.desc }}</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 2. Filtros -->
+  <section class="card">
+    <div class="card__head">
+      <h2 class="card__title">2. Filtros</h2>
+      <button class="btn-link" type="button" (click)="limpiarFiltros()" [disabled]="!hayFiltros">
+        <i class="ti ti-filter-off"></i> Limpiar filtros
+      </button>
     </div>
 
-    <h1 class="report-card__title">Reporte de Proyectos</h1>
-    <p class="report-card__desc">
-      Genera un documento PDF con el listado de proyectos. Puedes filtrar
-      opcionalmente por estado y/o carrera; deja los filtros vacíos para
-      incluir todos los proyectos.
-    </p>
-
-    <div class="report-card__filters">
+    <div class="filtros">
+      <div class="field">
+        <label class="field__label">Desde ({{ etiquetaFecha }})</label>
+        <p-datepicker
+          [(ngModel)]="fechaDesde"
+          [maxDate]="fechaHasta"
+          [readonlyInput]="true"
+          dateFormat="dd/mm/yy"
+          placeholder="Fecha de inicio"
+          [showIcon]="true"
+          [showButtonBar]="true"
+          appendTo="body"
+          [style]="{ width: '100%' }"
+          (onSelect)="onCambio()"
+          (onClear)="onCambio()"
+        />
+      </div>
+      <div class="field">
+        <label class="field__label">Hasta ({{ etiquetaFecha }})</label>
+        <p-datepicker
+          [(ngModel)]="fechaHasta"
+          [minDate]="fechaDesde"
+          [readonlyInput]="true"
+          dateFormat="dd/mm/yy"
+          placeholder="Fecha de fin"
+          [showIcon]="true"
+          [showButtonBar]="true"
+          appendTo="body"
+          [style]="{ width: '100%' }"
+          (onSelect)="onCambio()"
+          (onClear)="onCambio()"
+        />
+      </div>
       <div class="field">
         <label class="field__label">Estado</label>
         <p-select
-          [(ngModel)]="selectedEstado"
+          [(ngModel)]="estado"
+          (ngModelChange)="onCambio()"
           [options]="estadoOptions"
           optionLabel="label"
           optionValue="value"
@@ -27,12 +80,26 @@
           appendTo="body"
         />
       </div>
-
-      <div class="field">
+      <div class="field" *ngIf="!esEncargado">
+        <label class="field__label">Facultad</label>
+        <p-select
+          [(ngModel)]="facultadId"
+          (ngModelChange)="onFacultadChange()"
+          [options]="facultadOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todas las facultades"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+      </div>
+      <div class="field" *ngIf="!esEncargado">
         <label class="field__label">Carrera</label>
         <p-select
-          [(ngModel)]="selectedCarreraId"
-          [options]="carrerasOptions"
+          [(ngModel)]="carreraId"
+          (ngModelChange)="onCambio()"
+          [options]="carreraOptions"
           optionLabel="label"
           optionValue="value"
           placeholder="Todas las carreras"
@@ -42,17 +109,114 @@
           appendTo="body"
         />
       </div>
+      <div class="field">
+        <label class="field__label">Tipo de intervención</label>
+        <p-select
+          [(ngModel)]="tipoIntervencion"
+          (ngModelChange)="onCambio()"
+          [options]="tipoIntervencionOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todos los tipos"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+      </div>
+      <div class="field">
+        <label class="field__label">Comuna</label>
+        <p-select
+          [(ngModel)]="ciudad"
+          (ngModelChange)="onCambio()"
+          [options]="comunaOptions"
+          placeholder="Todas las comunas"
+          [filter]="true"
+          filterPlaceholder="Buscar comuna"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+      </div>
+      <div class="field">
+        <label class="field__label">Docente</label>
+        <input
+          class="field__input"
+          type="text"
+          [(ngModel)]="docente"
+          (ngModelChange)="onCambio()"
+          placeholder="Nombre o apellido"
+        />
+      </div>
+      <div class="field">
+        <label class="field__label">Orden</label>
+        <p-select
+          [(ngModel)]="orden"
+          (ngModelChange)="onCambio()"
+          [options]="ordenOptions"
+          optionLabel="label"
+          optionValue="value"
+          [style]="{ width: '100%' }"
+          appendTo="body"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Columnas -->
+  <section class="card" *ngIf="catalogoActual as cat">
+    <div class="card__head">
+      <h2 class="card__title">3. Columnas del reporte</h2>
+      <span class="card__links">
+        <button class="btn-link" type="button" (click)="todasLasColumnas()">Todas</button>
+        <button class="btn-link" type="button" (click)="columnasPredeterminadas()">Restablecer</button>
+      </span>
+    </div>
+    <div class="columnas">
+      <label class="columna" *ngFor="let c of cat.columnas" [class.columna--on]="columnaMarcada(c.key)">
+        <input type="checkbox" [checked]="columnaMarcada(c.key)" (change)="toggleColumna(c.key)" />
+        {{ c.label }}
+      </label>
+    </div>
+  </section>
+
+  <!-- 4. Vista previa -->
+  <section class="card">
+    <div class="card__head">
+      <h2 class="card__title">4. Vista previa</h2>
+      <button class="btn-primary" type="button" (click)="generarPdf()" [disabled]="generating || !vista || vista.total === 0">
+        <i class="ti {{ generating ? 'ti-loader-2' : 'ti-download' }}"></i>
+        {{ generating ? 'Generando…' : 'Descargar PDF' }}
+      </button>
     </div>
 
-    <div class="report-card__actions">
-      <button class="btn-secondary" type="button" (click)="clearFilters()" [disabled]="generating">
-        <i class="ti ti-filter-off"></i>
-        Limpiar filtros
-      </button>
-      <button class="btn-primary" type="button" (click)="generarPdf()" [disabled]="generating">
-        <i class="ti {{ generating ? 'ti-loader-2' : 'ti-download' }}"></i>
-        {{ generating ? 'Generando…' : 'Generar PDF' }}
-      </button>
-    </div>
-  </div>
+    <p class="estado-msg" *ngIf="!vista && loadingVista">Calculando…</p>
+
+    <ng-container *ngIf="vista">
+      <div class="resumen" [class.resumen--cargando]="loadingVista">
+        <span class="resumen__total"><strong>{{ vista.total }}</strong> {{ vista.total === 1 ? 'registro' : 'registros' }}</span>
+        <span class="chip" *ngFor="let e of vista.resumen.porEstado">{{ e.estado }}: <strong>{{ e.cantidad }}</strong></span>
+        <span class="chip chip--azul" *ngIf="vista.resumen.horasTotales !== null">Horas hombre: <strong>{{ vista.resumen.horasTotales }}</strong></span>
+        <span class="chip chip--azul" *ngIf="vista.resumen.personasTotales !== null">Personas alcanzadas: <strong>{{ vista.resumen.personasTotales }}</strong></span>
+      </div>
+
+      <p class="estado-msg" *ngIf="vista.total === 0">No hay registros con los filtros elegidos.</p>
+
+      <div class="tabla-wrap" *ngIf="vista.total > 0" [class.resumen--cargando]="loadingVista">
+        <table class="tabla">
+          <thead>
+            <tr><th *ngFor="let c of vista.columnas">{{ c.label }}</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let f of vista.filas">
+              <td *ngFor="let c of vista.columnas">{{ f[c.key] }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="nota" *ngIf="vista.total > vista.mostradas">
+        Mostrando las primeras {{ vista.mostradas }} filas de {{ vista.total }}. El PDF incluye todos los registros{{ vista.truncado ? ' (hasta un máximo de 5.000)' : '' }}.
+      </p>
+    </ng-container>
+  </section>
 </div>

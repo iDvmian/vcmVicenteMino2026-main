@@ -60,6 +60,15 @@ export class SolicitudesController {
     return this.solicitudesService.findMisSolicitudes(req.user.id, query);
   }
 
+  // Debe ir antes de /:id
+  @Get('mi-resumen')
+  @Roles(Role.CLIENTE)
+  @ApiOperation({ summary: 'Resumen y seguimiento de las solicitudes del solicitante' })
+  @ApiOkResponse({ description: 'Resumen obtenido exitosamente' })
+  miResumen(@Request() req: { user: CurrentUser }) {
+    return this.solicitudesService.miResumen(req.user.id);
+  }
+
   @Get()
   @Roles(
     Role.ADMIN,
@@ -97,7 +106,7 @@ export class SolicitudesController {
     @Body() dto: CreateSolicitudDto,
     @Request() req: { user: CurrentUser },
   ) {
-    return this.solicitudesService.create(dto, req.user.id);
+    return this.solicitudesService.create(dto, req.user);
   }
 
   @Patch(':id')
@@ -123,8 +132,9 @@ export class SolicitudesController {
   gestionar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: GestionarSolicitudDto,
+    @Request() req: { user: CurrentUser },
   ) {
-    return this.solicitudesService.gestionar(id, dto);
+    return this.solicitudesService.gestionar(id, dto, req.user.id);
   }
 
   @Delete(':id')

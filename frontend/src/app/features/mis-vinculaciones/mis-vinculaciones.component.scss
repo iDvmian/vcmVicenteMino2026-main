@@ -1,0 +1,112 @@
+.mv {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+
+  &__header { margin-bottom: 18px; }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 6px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ucm-azul);
+
+    i { font-size: 26px; }
+  }
+
+  &__subtitle { margin: 0; font-size: 14px; color: var(--ucm-muted); }
+
+  &__filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    background: var(--ucm-card);
+    border: 1px solid var(--ucm-borde);
+    border-radius: 8px;
+  }
+
+  &__state {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--ucm-muted);
+
+    &--error { color: #b91c1c; }
+  }
+
+  &__kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  &__charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--ucm-borde);
+  border-radius: 8px;
+  background: var(--ucm-card);
+  color: var(--ucm-texto);
+  font-size: 14px;
+  cursor: pointer;
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--ucm-card);
+  border: 1px solid var(--ucm-borde);
+  border-left: 4px solid var(--ucm-azul);
+  border-radius: 10px;
+
+  &--ok { border-left-color: #22c55e; }
+  &--cel { border-left-color: var(--ucm-celeste); }
+  &--warn { border-left-color: #f59e0b; }
+
+  &__n { font-size: 28px; font-weight: 700; color: var(--ucm-texto); }
+  &__l { font-size: 13px; color: var(--ucm-muted); }
+}
+
+.card {
+  padding: 16px 18px;
+  background: var(--ucm-card);
+  border: 1px solid var(--ucm-borde);
+  border-radius: 10px;
+
+  &--table { padding: 0; overflow: hidden; }
+
+  &__title { margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--ucm-azul); }
+  &__chart { position: relative; min-width: 0; }
+}
+
+.col-titulo {
+  max-width: 280px;
+  overflow-wrap: anywhere;
+
+  small { display: block; }
+}
+
+.muted { color: var(--ucm-muted); font-size: 12px; }
+.num { text-align: right; white-space: nowrap; }
+
+.empty { padding: 24px; text-align: center; color: var(--ucm-muted); }

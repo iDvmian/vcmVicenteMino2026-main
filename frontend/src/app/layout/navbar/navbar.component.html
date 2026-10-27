@@ -7,7 +7,7 @@
   <div class="navbar__nav">
     <a routerLink="/dashboard" routerLinkActive="navbar__link--active"
        [routerLinkActiveOptions]="{ exact: true }" class="navbar__link">
-      Dashboard
+      {{ inicioLabel }}
     </a>
     <a *ngIf="showFacultadesCarreras" routerLink="/dashboard/facultades" routerLinkActive="navbar__link--active" class="navbar__link">
       Facultades
@@ -29,6 +29,9 @@
     </a>
     <a *ngIf="showProyectos" routerLink="/dashboard/proyectos" routerLinkActive="navbar__link--active" class="navbar__link">
       Proyectos
+    </a>
+    <a *ngIf="showMisVinculaciones" routerLink="/dashboard/mis-vinculaciones" routerLinkActive="navbar__link--active" class="navbar__link">
+      Mis vinculaciones
     </a>
     <a *ngIf="showReportes" routerLink="/dashboard/reportes" routerLinkActive="navbar__link--active" class="navbar__link">
       Reportes

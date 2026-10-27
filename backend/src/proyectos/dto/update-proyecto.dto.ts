@@ -37,11 +37,27 @@ export class UpdateProyectoDto {
   @Type(() => Number)
   participantesEstudiantes?: number;
 
-  @ApiPropertyOptional({ example: 25, description: 'Personas externas a la universidad alcanzadas' })
+  @ApiPropertyOptional({ example: 25, description: 'Docentes externos a la universidad alcanzados' })
   @IsOptional()
   @IsInt({ message: 'Debe ser un número entero' })
   @Min(0)
   @Max(100000)
   @Type(() => Number)
-  participantesExternos?: number;
+  participantesDocentesExternos?: number;
+
+  @ApiPropertyOptional({ example: 25, description: 'Alumnos externos a la universidad alcanzados' })
+  @IsOptional()
+  @IsInt({ message: 'Debe ser un número entero' })
+  @Min(0)
+  @Max(100000)
+  @Type(() => Number)
+  participantesAlumnosExternos?: number;
+
+  @ApiPropertyOptional({ example: 25, description: 'Otras personas externas (comunidad, vecinos, etc.) alcanzadas' })
+  @IsOptional()
+  @IsInt({ message: 'Debe ser un número entero' })
+  @Min(0)
+  @Max(100000)
+  @Type(() => Number)
+  participantesOtrosExternos?: number;
 }

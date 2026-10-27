@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, noAuthGuard, noClienteGuard } from './core/guards/auth.guard';
+import { authGuard, noAuthGuard, noClienteGuard, soloGestionGuard } from './core/guards/auth.guard';
 import { LoginComponent } from './features/auth/login/login.component';
 import { RegisterComponent } from './features/auth/register/register.component';
 import { ForgotPasswordComponent } from './features/auth/forgot-password/forgot-password.component';
@@ -28,18 +28,19 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard/facultades',
-        canActivate: [noClienteGuard],
+        canActivate: [soloGestionGuard],
         loadComponent: () =>
           import('./features/facultades/facultades.component').then(m => m.FacultadesComponent),
       },
       {
         path: 'dashboard/carreras',
-        canActivate: [noClienteGuard],
+        canActivate: [soloGestionGuard],
         loadComponent: () =>
           import('./features/carreras/carreras.component').then(m => m.CarrerasComponent),
       },
       {
         path: 'dashboard/usuarios',
+        canActivate: [soloGestionGuard],
         loadComponent: () =>
           import('./features/usuarios/usuarios.component').then(m => m.UsuariosComponent),
       },
@@ -62,6 +63,11 @@ export const routes: Routes = [
         path: 'dashboard/proyectos',
         loadComponent: () =>
           import('./features/proyectos/proyectos.component').then(m => m.ProyectosComponent),
+      },
+      {
+        path: 'dashboard/mis-vinculaciones',
+        loadComponent: () =>
+          import('./features/mis-vinculaciones/mis-vinculaciones.component').then(m => m.MisVinculacionesComponent),
       },
       {
         path: 'dashboard/reportes',

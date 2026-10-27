@@ -4,10 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoProyecto, Role } from '@prisma/client';
+import { EstadoProyecto, EtapaSeguimiento, Role } from '@prisma/client';
+import { registrarEtapa } from '../common/seguimiento';
+
+const ETAPA_POR_ESTADO: Record<EstadoProyecto, EtapaSeguimiento> = {
+  EN_PROCESO: EtapaSeguimiento.PROYECTO_EN_PROCESO,
+  PAUSADO: EtapaSeguimiento.PROYECTO_PAUSADO,
+  FINALIZADO: EtapaSeguimiento.PROYECTO_FINALIZADO,
+  CANCELADO: EtapaSeguimiento.PROYECTO_CANCELADO,
+};
 import { CurrentUser } from '../auth/strategies/jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { MailService } from '../mail/mail.service';
 import { CreateObservacionDto } from './dto/create-observacion.dto';
 import { CreateProyectoDto } from './dto/create-proyecto.dto';
 import { QueryProyectosDto } from './dto/query-proyectos.dto';
@@ -43,6 +52,7 @@ export class ProyectosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
+    private readonly mailService: MailService,
   ) {}
 
   async findAll(query: QueryProyectosDto, currentUser: CurrentUser) {
@@ -117,7 +127,10 @@ export class ProyectosService {
   async create(dto: CreateProyectoDto, currentUser: CurrentUser) {
     const planteamiento = await this.prisma.planteamiento.findUnique({
       where: { id: dto.planteamientoId },
-      include: { proyecto: { select: { id: true } } },
+      include: {
+        proyecto: { select: { id: true } },
+        solicitud: { select: { titulo: true, cliente: { select: { nombres: true, apellidos: true, email: true } } } },
+      },
     });
 
     if (!planteamiento) throw new NotFoundException('Planteamiento no encontrado');
@@ -148,7 +161,9 @@ export class ProyectosService {
           fechaFin: new Date(dto.fechaFin),
           participantesDocentes: dto.participantesDocentes,
           participantesEstudiantes: dto.participantesEstudiantes,
-          participantesExternos: dto.participantesExternos,
+          participantesDocentesExternos: dto.participantesDocentesExternos,
+          participantesAlumnosExternos: dto.participantesAlumnosExternos,
+          participantesOtrosExternos: dto.participantesOtrosExternos,
           estado: EstadoProyecto.EN_PROCESO,
         },
       });
@@ -159,8 +174,26 @@ export class ProyectosService {
         });
       }
 
+      // Seguimiento: el proyecto nace activo (EN_PROCESO)
+      await registrarEtapa(tx, planteamiento.solicitudId, EtapaSeguimiento.PROYECTO_CREADO, currentUser.id, { propagarError: true });
+      await registrarEtapa(tx, planteamiento.solicitudId, EtapaSeguimiento.PROYECTO_EN_PROCESO, currentUser.id, { propagarError: true });
+
       return created;
     });
+
+    // Aviso al solicitante: su iniciativa pasó a ejecución
+    const cli = planteamiento.solicitud.cliente;
+    const fmt = (iso: string) => new Date(iso).toLocaleDateString('es-CL', { timeZone: 'UTC' });
+    this.mailService
+      .sendAvanceIniciativa({
+        to: cli.email,
+        nombreCliente: `${cli.nombres} ${cli.apellidos}`,
+        tituloSolicitud: planteamiento.solicitud.titulo,
+        hito: 'PROYECTO_INICIADO',
+        fechaInicio: fmt(dto.fechaInicio),
+        fechaFin: fmt(dto.fechaFin),
+      })
+      .catch((err) => console.error('[ProyectosService] Error enviando notificación:', err));
 
     return this.findOne(proyecto.id, currentUser);
   }
@@ -203,7 +236,9 @@ export class ProyectosService {
     // undefined = no tocar; null = vaciar el dato
     if (dto.participantesDocentes !== undefined) dataToUpdate.participantesDocentes = dto.participantesDocentes;
     if (dto.participantesEstudiantes !== undefined) dataToUpdate.participantesEstudiantes = dto.participantesEstudiantes;
-    if (dto.participantesExternos !== undefined) dataToUpdate.participantesExternos = dto.participantesExternos;
+    if (dto.participantesDocentesExternos !== undefined) dataToUpdate.participantesDocentesExternos = dto.participantesDocentesExternos;
+    if (dto.participantesAlumnosExternos !== undefined) dataToUpdate.participantesAlumnosExternos = dto.participantesAlumnosExternos;
+    if (dto.participantesOtrosExternos !== undefined) dataToUpdate.participantesOtrosExternos = dto.participantesOtrosExternos;
 
     if (Object.keys(dataToUpdate).length > 0) {
       await this.prisma.proyecto.update({ where: { id }, data: dataToUpdate });
@@ -216,7 +251,15 @@ export class ProyectosService {
   async updateEstado(id: number, dto: UpdateEstadoProyectoDto, currentUser: CurrentUser) {
     const proyecto = await this.prisma.proyecto.findUnique({
       where: { id },
-      include: { planteamiento: { select: { docenteId: true } } },
+      include: {
+        planteamiento: {
+          select: {
+            docenteId: true,
+            solicitudId: true,
+            solicitud: { select: { titulo: true, cliente: { select: { nombres: true, apellidos: true, email: true } } } },
+          },
+        },
+      },
     });
     if (!proyecto) throw new NotFoundException(`Proyecto con id ${id} no encontrado`);
 
@@ -229,6 +272,23 @@ export class ProyectosService {
       data: { estado: dto.estado },
       include: PROYECTO_INCLUDE,
     });
+
+    if (dto.estado !== proyecto.estado) {
+      await registrarEtapa(this.prisma, proyecto.planteamiento.solicitudId, ETAPA_POR_ESTADO[dto.estado], currentUser.id);
+
+      // Aviso al solicitante cuando la iniciativa finaliza
+      if (dto.estado === EstadoProyecto.FINALIZADO) {
+        const cli = proyecto.planteamiento.solicitud.cliente;
+        this.mailService
+          .sendAvanceIniciativa({
+            to: cli.email,
+            nombreCliente: `${cli.nombres} ${cli.apellidos}`,
+            tituloSolicitud: proyecto.planteamiento.solicitud.titulo,
+            hito: 'PROYECTO_FINALIZADO',
+          })
+          .catch((err) => console.error('[ProyectosService] Error enviando notificación:', err));
+      }
+    }
 
     return { data: updated, message: 'Estado actualizado', statusCode: 200 };
   }

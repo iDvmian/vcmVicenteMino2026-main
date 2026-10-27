@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, Matches, MaxLength } from 'class-validator';
+import { TipoCliente } from '@prisma/client';
+import { IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, Matches, Max, MaxLength, ValidateIf } from 'class-validator';
 import { COMUNAS_MAULE } from '../../common/constants/comunas-maule';
 
 export class CreateSolicitudDto {
@@ -38,6 +39,30 @@ export class CreateSolicitudDto {
   @IsNotEmpty({ message: 'El teléfono es requerido' })
   @Matches(/^\+?[\d\s]{8,20}$/, { message: 'Teléfono inválido (ej: +56 9 1234 5678)' })
   telefono: string;
+
+  @ApiProperty({ enum: TipoCliente, example: TipoCliente.JUNTA_VECINOS, description: 'Tipo de organización o persona que solicita' })
+  @IsEnum(TipoCliente, { message: 'Tipo de cliente inválido' })
+  tipoCliente: TipoCliente;
+
+  @ApiPropertyOptional({ example: 'Cooperativa agrícola', description: 'Obligatorio cuando tipoCliente es OTRO' })
+  @ValidateIf((o) => o.tipoCliente === TipoCliente.OTRO)
+  @IsString()
+  @IsNotEmpty({ message: 'Indica qué tipo de cliente eres' })
+  @MaxLength(100)
+  tipoClienteOtro?: string;
+
+  @ApiPropertyOptional({ example: 'Junta de vecinos Villa Los Aromos', description: 'Organización con la que se trabajará (iniciativa de docente)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  nombreOrganizacion?: string;
+
+  @ApiPropertyOptional({ example: 30, description: 'Cantidad aproximada de personas que participarían (iniciativa de docente)' })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Max(100000)
+  personasPrevistas?: number;
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()

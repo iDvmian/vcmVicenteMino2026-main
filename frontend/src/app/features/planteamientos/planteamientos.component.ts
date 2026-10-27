@@ -7,6 +7,7 @@ import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
+import { DatePickerModule } from 'primeng/datepicker';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -34,6 +35,7 @@ interface SolicitudOption {
     ButtonModule,
     InputTextModule,
     SelectModule,
+    DatePickerModule,
     TagModule,
     ToastModule,
     ConfirmDialogModule,
@@ -50,6 +52,14 @@ export class PlanteamientosComponent implements OnInit {
   currentPage = 1;
 
   selectedEstado: EstadoPlanteamiento | null = null;
+  selectedTipo: TipoIntervencion | null = null;
+  docenteTexto = '';
+  fechaDesde = '';
+  fechaHasta = '';
+  /** Fechas elegidas en los calendarios; fechaDesde/fechaHasta (AAAA-MM-DD) son lo que se envía al backend. */
+  desdeDate: Date | null = null;
+  hastaDate: Date | null = null;
+  private docenteTimer: ReturnType<typeof setTimeout> | null = null;
   solicitudesDropdown: SolicitudOption[] = [];
 
   readonly estadoOptions: { label: string; value: EstadoPlanteamiento }[] = [
@@ -114,6 +124,19 @@ export class PlanteamientosComponent implements OnInit {
 
     this.gestionarForm = this.fb.group({
       estado: [null, Validators.required],
+      motivoRechazo: [''],
+    });
+
+    // El motivo solo es obligatorio cuando se rechaza
+    this.gestionarForm.get('estado')!.valueChanges.subscribe((estado) => {
+      const motivo = this.gestionarForm.get('motivoRechazo')!;
+      if (estado === 'RECHAZADO') {
+        motivo.setValidators([Validators.required, Validators.maxLength(500), Validators.pattern(/\S/)]);
+      } else {
+        motivo.clearValidators();
+        motivo.setValue('', { emitEvent: false });
+      }
+      motivo.updateValueAndValidity({ emitEvent: false });
     });
   }
 
@@ -138,12 +161,19 @@ export class PlanteamientosComponent implements OnInit {
 
   get showDocenteColumn() { return this.currentUser?.rol !== 'DOCENTE'; }
 
+  /** Se puede editar mientras esté pendiente o rechazado y no tenga proyecto asociado. */
   canEdit(p: Planteamiento): boolean {
-    return p.estado === 'PENDIENTE' && (p.docenteId === this.currentUser?.id || this.isAdmin);
+    return (p.estado === 'PENDIENTE' || p.estado === 'RECHAZADO') && !p.proyecto
+      && (p.docenteId === this.currentUser?.id || this.isAdmin);
   }
 
   canDelete(p: Planteamiento): boolean {
-    return this.canEdit(p);
+    return p.estado === 'PENDIENTE' && !p.proyecto && (p.docenteId === this.currentUser?.id || this.isAdmin);
+  }
+
+  /** La evaluación es única: solo se evalúa un planteamiento pendiente. */
+  canEvaluar(p: Planteamiento): boolean {
+    return this.canGestionar && p.estado === 'PENDIENTE';
   }
 
   ngOnInit(): void {
@@ -162,7 +192,7 @@ export class PlanteamientosComponent implements OnInit {
     // el backend aplica filtro por carreraId automáticamente para DOCENTE y ENCARGADO_CARRERA
     if (!rol || rol === 'CLIENTE') return;
 
-    this.solicitudesService.getAll({ estado: 'APROBADA', limit: 100 }).subscribe({
+    this.solicitudesService.getAll({ estado: 'APROBADA', sinPlanteamiento: true, limit: 100 }).subscribe({
       next: (res) => {
         this.solicitudesDropdown = res.items.map(s => ({ id: s.id, label: s.titulo }));
         this.cdr.detectChanges();
@@ -175,6 +205,10 @@ export class PlanteamientosComponent implements OnInit {
     this.loading = true;
     const params: Record<string, any> = { page: this.currentPage, limit: this.rows };
     if (this.selectedEstado !== null) params['estado'] = this.selectedEstado;
+    if (this.selectedTipo !== null) params['tipoIntervencion'] = this.selectedTipo;
+    if (this.fechaDesde) params['fechaDesde'] = this.fechaDesde;
+    if (this.fechaHasta) params['fechaHasta'] = this.fechaHasta;
+    if (this.useAllEndpoint && this.docenteTexto.trim()) params['docente'] = this.docenteTexto.trim();
 
     const obs = this.useAllEndpoint
       ? this.service.getAll(params)
@@ -205,8 +239,32 @@ export class PlanteamientosComponent implements OnInit {
     this.loadItems();
   }
 
+  private toIso(d: Date): string {
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }
+
+  onFechasChange(): void {
+    this.fechaDesde = this.desdeDate ? this.toIso(this.desdeDate) : '';
+    this.fechaHasta = this.hastaDate ? this.toIso(this.hastaDate) : '';
+    this.onFilterChange();
+  }
+
+  /** Búsqueda de docente con retardo para no consultar en cada tecla. */
+  onDocenteInput(): void {
+    if (this.docenteTimer) clearTimeout(this.docenteTimer);
+    this.docenteTimer = setTimeout(() => this.onFilterChange(), 400);
+  }
+
   clearFilters(): void {
     this.selectedEstado = null;
+    this.selectedTipo = null;
+    this.docenteTexto = '';
+    this.fechaDesde = '';
+    this.fechaHasta = '';
+    this.desdeDate = null;
+    this.hastaDate = null;
     this.currentPage = 1;
     this.loadItems();
   }
@@ -292,6 +350,7 @@ export class PlanteamientosComponent implements OnInit {
     this.saving = false;
     this.cdr.detectChanges();
     this.loadItems();
+    this.loadSolicitudesDropdown(); // la solicitud ya con planteamiento deja de ofrecerse
   }
 
   private onSaveError(err: any): void {
@@ -386,7 +445,7 @@ export class PlanteamientosComponent implements OnInit {
   // ── Gestionar ─────────────────────────────────────────────
   openGestionar(item: Planteamiento): void {
     this.gestionarItem = item;
-    this.gestionarForm.reset();
+    this.gestionarForm.reset({ estado: null, motivoRechazo: '' });
     this.gestionarDialogVisible = true;
   }
 
@@ -398,6 +457,7 @@ export class PlanteamientosComponent implements OnInit {
     this.gestionarSaving = true;
     const dto: GestionarPlanteamientoDto = {
       estado: this.gestionarForm.value.estado,
+      ...(this.gestionarForm.value.estado === 'RECHAZADO' && { motivoRechazo: this.gestionarForm.value.motivoRechazo.trim() }),
     };
     this.service.gestionar(this.gestionarItem!.id, dto).subscribe({
       next: () => {

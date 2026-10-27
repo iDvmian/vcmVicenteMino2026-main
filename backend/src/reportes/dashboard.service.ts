@@ -75,7 +75,7 @@ export class DashboardService {
     const proyPorEstado = { EN_PROCESO: 0, PAUSADO: 0, FINALIZADO: 0, CANCELADO: 0 };
     let horasHombre = 0;
     let sumaDuracionMs = 0;
-    const participantes = { docentes: 0, estudiantes: 0, externos: 0 };
+    const participantes = { docentes: 0, estudiantes: 0, docentesExternos: 0, alumnosExternos: 0, otrosExternos: 0 };
     const alumnosSet = new Set<number>();
     for (const pr of proyectos) {
       proyPorEstado[pr.estado]++;
@@ -83,7 +83,9 @@ export class DashboardService {
       sumaDuracionMs += pr.fechaFin.getTime() - pr.fechaInicio.getTime();
       participantes.docentes += pr.participantesDocentes ?? 0;
       participantes.estudiantes += pr.participantesEstudiantes ?? 0;
-      participantes.externos += pr.participantesExternos ?? 0;
+      participantes.docentesExternos += pr.participantesDocentesExternos ?? 0;
+      participantes.alumnosExternos += pr.participantesAlumnosExternos ?? 0;
+      participantes.otrosExternos += pr.participantesOtrosExternos ?? 0;
       for (const a of pr.alumnos) alumnosSet.add(a.alumnoId);
     }
 
@@ -206,7 +208,7 @@ export class DashboardService {
         },
         tasaConversion: pct(proyectos.length, totalSol),
         horasHombre,
-        participantes: { ...participantes, total: participantes.docentes + participantes.estudiantes + participantes.externos },
+        participantes: { ...participantes, total: participantes.docentes + participantes.estudiantes + participantes.docentesExternos + participantes.alumnosExternos + participantes.otrosExternos },
         alumnosVoluntarios: alumnosSet.size,
         duracionPromedioDias: proyectos.length ? round1(sumaDuracionMs / proyectos.length / DIA_MS) : null,
         tiempoRespuestaPromedioDias: respondidas ? round1(sumaRespuestaMs / respondidas / DIA_MS) : null,

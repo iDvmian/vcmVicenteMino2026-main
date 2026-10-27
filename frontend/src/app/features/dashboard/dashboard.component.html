@@ -11,20 +11,36 @@
 
   <!-- Filtros -->
   <section class="filters">
-    <div class="filters__field filters__field--fechas">
-      <label class="filters__label">Rango de fechas</label>
+    <div class="filters__field">
+      <label class="filters__label">Fecha de inicio</label>
       <p-datepicker
-        [(ngModel)]="rangoFechas"
-        selectionMode="range"
+        [(ngModel)]="fechaDesde"
+        [maxDate]="fechaHasta"
         [readonlyInput]="true"
         dateFormat="dd/mm/yy"
-        placeholder="Fecha de inicio – fecha de fin"
+        placeholder="Desde"
         [showIcon]="true"
         [showButtonBar]="true"
         appendTo="body"
         [style]="{ width: '100%' }"
-        (onSelect)="onRangoSelect()"
-        (onClear)="onRangoClear()"
+        (onSelect)="cargar()"
+        (onClear)="cargar()"
+      />
+    </div>
+    <div class="filters__field">
+      <label class="filters__label">Fecha de fin</label>
+      <p-datepicker
+        [(ngModel)]="fechaHasta"
+        [minDate]="fechaDesde"
+        [readonlyInput]="true"
+        dateFormat="dd/mm/yy"
+        placeholder="Hasta"
+        [showIcon]="true"
+        [showButtonBar]="true"
+        appendTo="body"
+        [style]="{ width: '100%' }"
+        (onSelect)="cargar()"
+        (onClear)="cargar()"
       />
     </div>
     <div class="filters__field">
@@ -114,7 +130,7 @@
           <span class="kpi__value">{{ fmt(d.resumen.participantes.total) }}</span>
           <span class="kpi__note">
             {{ d.resumen.participantes.docentes }} docentes · {{ d.resumen.participantes.estudiantes }} estudiantes ·
-            {{ d.resumen.participantes.externos }} externos
+            {{ d.resumen.participantes.docentesExternos }} docentes externos · {{ d.resumen.participantes.alumnosExternos }} alumnos externos · {{ d.resumen.participantes.otrosExternos }} otros externos
           </span>
         </article>
         <article class="kpi">
@@ -203,7 +219,7 @@
 </div>
 
 <!-- Bienvenida para el resto de los roles -->
-<div class="dashboard" *ngIf="!showPanel">
+<div class="dashboard" *ngIf="!showPanel && !esCliente">
   <div class="dashboard__welcome">
     <div class="dashboard__icon">
       <i class="ti ti-layout-dashboard"></i>
@@ -212,6 +228,70 @@
       ¡Bienvenido, {{ currentUser?.nombres }}!
     </h1>
     <p class="dashboard__subtitle">Sistema de Gestión VCM - FCI UCM</p>
-    <span class="dashboard__rol">{{ currentUser?.rol }}</span>
+    <span class="dashboard__rol">{{ currentUser?.rol?.replace('_', ' ') }}</span>
   </div>
+</div>
+
+<!-- Inicio del solicitante -->
+<div class="cliente" *ngIf="esCliente">
+  <header class="cliente__header">
+    <div>
+      <h1 class="cliente__title">¡Hola, {{ currentUser?.nombres }}!</h1>
+      <p class="cliente__subtitle">Aquí puedes ver cómo avanzan tus solicitudes de vinculación con la Universidad.</p>
+    </div>
+    <a class="cliente__cta" routerLink="/dashboard/solicitudes" [queryParams]="{ nueva: 1 }">
+      <i class="ti ti-plus"></i> Nueva solicitud
+    </a>
+  </header>
+
+  <p *ngIf="resumenCargando && !resumen" class="panel__state">Cargando tus solicitudes…</p>
+  <p *ngIf="resumenError" class="panel__state panel__state--error">No se pudo cargar tu resumen. Intenta nuevamente.</p>
+
+  <ng-container *ngIf="resumen as r">
+    <section class="cliente__kpis">
+      <div class="mkpi"><span class="mkpi__n">{{ r.total }}</span><span class="mkpi__l">Solicitudes</span></div>
+      <div class="mkpi mkpi--warn"><span class="mkpi__n">{{ r.pendientes }}</span><span class="mkpi__l">Pendientes</span></div>
+      <div class="mkpi mkpi--ok"><span class="mkpi__n">{{ r.aprobadas }}</span><span class="mkpi__l">Aprobadas</span></div>
+      <div class="mkpi mkpi--bad"><span class="mkpi__n">{{ r.rechazadas }}</span><span class="mkpi__l">Rechazadas</span></div>
+    </section>
+
+    <section class="cliente__alert" *ngFor="let s of rechazadasRecientes">
+      <i class="ti ti-alert-circle"></i>
+      <div class="cliente__alert-body">
+        <strong>Tu solicitud «{{ s.titulo }}» fue rechazada.</strong>
+        <p *ngIf="s.motivoRechazo">Motivo: {{ s.motivoRechazo }}</p>
+      </div>
+      <button type="button" class="cliente__alert-close" (click)="cerrarAlerta(s.id)" title="Cerrar aviso" aria-label="Cerrar aviso">
+        <i class="ti ti-x"></i>
+      </button>
+    </section>
+
+    <p *ngIf="r.total === 0" class="panel__state">
+      Aún no has enviado ninguna solicitud. Usa «Nueva solicitud» para comenzar.
+    </p>
+
+    <section class="cliente__list" *ngIf="r.total > 0">
+      <div class="cliente__list-head">
+        <h2>Seguimiento de tus solicitudes</h2>
+        <a routerLink="/dashboard/solicitudes">Ver todas</a>
+      </div>
+
+      <article class="sol" *ngFor="let s of r.solicitudes">
+        <div class="sol__top">
+          <span class="sol__titulo" [title]="s.titulo">{{ s.titulo }}</span>
+          <span class="sol__fecha">Enviada el {{ s.createdAt | date: 'dd/MM/yyyy' }}</span>
+        </div>
+        <ol class="steps">
+          <li *ngFor="let p of s.pasos" class="step" [ngClass]="'step--' + p.estado">
+            <span class="step__dot">
+              <i *ngIf="p.estado === 'hecho'" class="ti ti-check"></i>
+              <i *ngIf="p.estado === 'rechazado'" class="ti ti-x"></i>
+            </span>
+            <span class="step__label">{{ p.label }}</span>
+            <span class="step__fecha">{{ p.fecha ? (p.fecha | date: 'dd/MM/yy') : '' }}</span>
+          </li>
+        </ol>
+      </article>
+    </section>
+  </ng-container>
 </div>

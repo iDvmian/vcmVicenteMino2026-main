@@ -21,6 +21,7 @@ export interface Planteamiento {
   tipoIntervencion?: TipoIntervencion | null;
   tipoIntervencionOtro?: string | null;
   estado: EstadoPlanteamiento;
+  motivoRechazo?: string | null;
   solicitudId: number;
   // El backend incluye la carrera de la solicitud; se expone aquí para poder
   // derivar la carrera del proyecto al asignar alumnos voluntarios.

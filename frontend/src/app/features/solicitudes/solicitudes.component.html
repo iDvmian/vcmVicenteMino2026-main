@@ -9,7 +9,7 @@
     </h1>
     <button *ngIf="canCreateSolicitud" class="btn-primary" (click)="openCreate()">
       <i class="ti ti-plus"></i>
-      Nueva solicitud
+      {{ esDocente ? 'Nueva iniciativa' : 'Nueva solicitud' }}
     </button>
   </div>
 
@@ -37,6 +37,32 @@
       [style]="{ 'min-width': '180px' }"
       [scrollHeight]="'250px'"
       appendTo="body"
+    />
+    <p-datepicker
+      [(ngModel)]="desdeDate"
+      [maxDate]="hastaDate"
+      [readonlyInput]="true"
+      dateFormat="dd/mm/yy"
+      placeholder="Fecha de inicio"
+      [showIcon]="true"
+      [showButtonBar]="true"
+      appendTo="body"
+      [style]="{ 'width': '170px' }"
+      (onSelect)="onFechasChange()"
+      (onClear)="onFechasChange()"
+    />
+    <p-datepicker
+      [(ngModel)]="hastaDate"
+      [minDate]="desdeDate"
+      [readonlyInput]="true"
+      dateFormat="dd/mm/yy"
+      placeholder="Fecha de fin"
+      [showIcon]="true"
+      [showButtonBar]="true"
+      appendTo="body"
+      [style]="{ 'width': '170px' }"
+      (onSelect)="onFechasChange()"
+      (onClear)="onFechasChange()"
     />
     <button class="btn-secondary" type="button" (click)="clearFilters()" [disabled]="!activeFilters.length">
       <i class="ti ti-filter-off"></i>
@@ -106,24 +132,6 @@
           placeholder="Nombre o correo"
         />
       </div>
-
-      <div class="filters__field filters__field--fechas">
-        <label class="field__label">Rango de fechas</label>
-        <p-datepicker
-          [(ngModel)]="rangoFechas"
-          selectionMode="range"
-          [readonlyInput]="true"
-          dateFormat="dd/mm/yy"
-          placeholder="Fecha de inicio – fecha de fin"
-          [showIcon]="true"
-          [showButtonBar]="true"
-          appendTo="body"
-          [style]="{ width: '100%' }"
-          (onSelect)="onRangoSelect()"
-          (onClose)="onRangoClose()"
-          (onClear)="onRangoClear()"
-        />
-      </div>
     </div>
   </div>
 
@@ -167,7 +175,7 @@
 
       <ng-template pTemplate="body" let-sol>
         <tr>
-          <td class="col-titulo" [title]="sol.titulo">{{ sol.titulo }}</td>
+          <td class="col-titulo" [title]="sol.titulo">{{ sol.titulo }}<span *ngIf="sol.origen === 'DOCENTE'" class="tag-iniciativa">Iniciativa docente</span></td>
           <td class="col-estado">
             <p-tag [value]="sol.estado" [style]="getEstadoStyle(sol.estado)" />
           </td>
@@ -202,6 +210,14 @@
                 <i class="ti ti-edit"></i>
               </button>
               <button
+                *ngIf="canReenviar(sol)"
+                class="btn-icon btn-icon--edit"
+                (click)="corregirYReenviar(sol)"
+                title="Corregir y reenviar"
+              >
+                <i class="ti ti-refresh"></i>
+              </button>
+              <button
                 *ngIf="canDelete(sol)"
                 class="btn-icon btn-icon--delete"
                 (click)="confirmDelete(sol)"
@@ -210,10 +226,10 @@
                 <i class="ti ti-trash"></i>
               </button>
               <button
-                *ngIf="canGestionar"
+                *ngIf="canGestionar && sol.estado === 'PENDIENTE'"
                 class="btn-icon btn-icon--manage"
                 (click)="openGestionar(sol)"
-                title="Gestionar"
+                title="Evaluar solicitud"
               >
                 <i class="ti ti-checks"></i>
               </button>
@@ -242,11 +258,21 @@
   [modal]="true"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: '600px' }"
-  [header]="viewOnly ? 'Ver solicitud' : (editingItem ? 'Editar solicitud' : 'Nueva solicitud')"
+  [style]="{ width: '800px', maxWidth: '95vw' }"
+  [header]="evaluando ? 'Evaluar solicitud' : reenviando ? 'Corregir y reenviar solicitud' : (viewOnly ? 'Ver solicitud' : (editingItem ? 'Editar solicitud' : (esDocente ? 'Nueva iniciativa docente' : 'Nueva solicitud')))"
+  (onHide)="evaluando = false"
 >
   <form [formGroup]="form">
     <div class="form-grid">
+      <!-- Motivo del rechazo anterior (solo al corregir y reenviar) -->
+      <div class="field field--full" *ngIf="reenviando">
+        <label class="field__label">Motivo del rechazo anterior</label>
+        <div class="motivo-box">{{ reenviando.motivoRechazo || 'Sin motivo indicado' }}</div>
+        <small class="field__hint">Corrige lo necesario y reenvía. Se creará una nueva solicitud; los archivos adjuntos debes subirlos de nuevo.</small>
+      </div>
+
+
+      <h3 class="form-section field--full">Datos de la solicitud</h3>
       <!-- Título -->
       <div class="field field--full">
         <label class="field__label">Título <span *ngIf="!viewOnly" class="required">*</span></label>
@@ -284,6 +310,72 @@
         </small>
       </div>
 
+
+      <h3 class="form-section field--full">{{ formIniciativa ? 'Organización o grupo' : 'Solicitante' }}</h3>
+      <!-- Iniciativa de docente: con quién se trabaja -->
+      <div class="field field--full" *ngIf="formIniciativa">
+        <label class="field__label">Organización o grupo con el que trabajarás <span *ngIf="!viewOnly" class="required">*</span></label>
+        <input
+          pInputText
+          formControlName="nombreOrganizacion"
+          maxlength="150"
+          placeholder="Ej: Junta de vecinos Villa Los Aromos, Escuela Básica N° 5..."
+          class="field__input"
+        />
+        <small class="field__error" *ngIf="form.get('nombreOrganizacion')?.invalid && form.get('nombreOrganizacion')?.touched">
+          Indica con qué organización o grupo trabajarás
+        </small>
+      </div>
+
+      <div class="field" *ngIf="formIniciativa">
+        <label class="field__label">Personas previstas (opcional)</label>
+        <input
+          type="number"
+          min="1"
+          max="100000"
+          formControlName="personasPrevistas"
+          placeholder="Cantidad aproximada"
+          class="field__input"
+        />
+        <small class="field__error" *ngIf="form.get('personasPrevistas')?.invalid && form.get('personasPrevistas')?.touched">
+          Ingresa un número entre 1 y 100000
+        </small>
+      </div>
+
+      <!-- Tipo de cliente -->
+      <div class="field">
+        <label class="field__label">{{ formIniciativa ? 'Tipo de organización' : 'Tipo de cliente' }} <span *ngIf="!viewOnly" class="required">*</span></label>
+        <p-select
+          formControlName="tipoCliente"
+          [options]="tipoClienteOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Junta de vecinos, ONG, empresa..."
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+        <small class="field__error" *ngIf="form.get('tipoCliente')?.invalid && form.get('tipoCliente')?.touched">
+          Indica qué tipo de cliente eres
+        </small>
+      </div>
+
+      <div class="field" *ngIf="form.get('tipoCliente')?.value === 'OTRO'">
+        <label class="field__label">¿Qué tipo de cliente eres? <span *ngIf="!viewOnly" class="required">*</span></label>
+        <input
+          pInputText
+          formControlName="tipoClienteOtro"
+          maxlength="100"
+          placeholder="Ej: Cooperativa agrícola, club deportivo..."
+          class="field__input"
+        />
+        <small class="field__error" *ngIf="form.get('tipoClienteOtro')?.invalid && form.get('tipoClienteOtro')?.touched">
+          Escribe el tipo de cliente
+        </small>
+      </div>
+
+
+      <h3 class="form-section field--full">Ubicación y contacto</h3>
       <!-- Ciudad (solo comunas del Maule, con buscador) -->
       <div class="field">
         <label class="field__label">Ciudad <span *ngIf="!viewOnly" class="required">*</span></label>
@@ -303,21 +395,6 @@
         </small>
       </div>
 
-      <!-- Carrera -->
-      <div class="field">
-        <label class="field__label">Carrera</label>
-        <p-select
-          formControlName="carreraId"
-          [options]="carrerasDropdown"
-          optionLabel="label"
-          optionValue="id"
-          placeholder="Seleccione una carrera"
-          [showClear]="true"
-          [style]="{ width: '100%' }"
-          [scrollHeight]="'250px'"
-          appendTo="body"
-        />
-      </div>
             <!-- Dirección -->
       <div class="field">
         <label class="field__label">Dirección del lugar <span *ngIf="!viewOnly" class="required">*</span></label>
@@ -335,7 +412,7 @@
 
       <!-- Número (opcional) -->
       <div class="field">
-        <label class="field__label">Número <span class="field__hint">(opcional)</span></label>
+        <label class="field__label">Número <span class="field__hint field__hint--inline">(opcional)</span></label>
         <input
           pInputText
           formControlName="numeroDireccion"
@@ -364,10 +441,119 @@
         </small>
       </div>
 
+
+      <h3 class="form-section field--full" *ngIf="!formIniciativa">Carrera asociada (opcional)</h3>
+      <!-- Facultad -> Carrera (en dos pasos) -->
+      <div class="field" *ngIf="!formIniciativa">
+        <label class="field__label">Facultad</label>
+        <p-select
+          formControlName="facultadId"
+          [options]="facultadesDropdown"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Primero elige una facultad"
+          [showClear]="true"
+          (onChange)="onFacultadFormChange(form)"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+      </div>
+
+      <div class="field" *ngIf="!formIniciativa">
+        <label class="field__label">Carrera</label>
+        <p-select
+          formControlName="carreraId"
+          [options]="carrerasDe(form.get('facultadId')?.value)"
+          optionLabel="label"
+          optionValue="id"
+          [placeholder]="form.get('facultadId')?.value ? 'Seleccione una carrera' : 'Elige primero una facultad'"
+          [showClear]="true"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+      </div>
       <!-- Estado (solo lectura al ver) -->
       <div class="field" *ngIf="viewOnly && editingItem">
         <label class="field__label">Estado</label>
         <p-tag [value]="editingItem.estado" [style]="getEstadoStyle(editingItem.estado)" />
+      </div>
+
+      <!-- Motivo del rechazo (solo lectura, cuando la solicitud fue rechazada) -->
+      <div class="field field--full" *ngIf="viewOnly && editingItem && editingItem.estado === 'RECHAZADA' && editingItem.motivoRechazo">
+        <label class="field__label">Motivo del rechazo</label>
+        <div class="motivo-box">{{ editingItem.motivoRechazo }}</div>
+      </div>
+
+      <!-- Evaluación (solo al evaluar una solicitud pendiente) -->
+      <div class="field field--full eval" *ngIf="evaluando" [formGroup]="gestionarForm">
+        <h3 class="eval__title">Evaluación</h3>
+
+        <div class="field">
+          <label class="field__label">Nuevo estado <span class="required">*</span></label>
+          <p-select
+            formControlName="estado"
+            [options]="gestionarEstadoOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Seleccione un estado"
+            [style]="{ width: '100%' }"
+            appendTo="body"
+          />
+          <small class="field__error" *ngIf="gestionarForm.get('estado')?.invalid && gestionarForm.get('estado')?.touched">
+            El estado es requerido
+          </small>
+        </div>
+
+        <!-- Carrera (opcional al APROBAR: vincula la solicitud a una carrera) -->
+        <div class="field" *ngIf="gestionarEstadoValue === 'APROBADA'">
+          <label class="field__label">Facultad (opcional)</label>
+          <p-select
+            formControlName="facultadId"
+            [options]="facultadesDropdown"
+            optionLabel="label"
+            optionValue="id"
+            placeholder="Primero elige una facultad"
+            [showClear]="true"
+            (onChange)="onFacultadFormChange(gestionarForm)"
+            [style]="{ width: '100%' }"
+            [scrollHeight]="'250px'"
+            appendTo="body"
+          />
+        </div>
+
+        <div class="field" *ngIf="gestionarEstadoValue === 'APROBADA'">
+          <label class="field__label">Carrera (opcional)</label>
+          <p-select
+            formControlName="carreraId"
+            [options]="carrerasDe(gestionarForm.get('facultadId')?.value)"
+            optionLabel="label"
+            optionValue="id"
+            placeholder="Seleccione una carrera"
+            [style]="{ width: '100%' }"
+            [scrollHeight]="'250px'"
+            appendTo="body"
+          />
+        </div>
+
+        <!-- Motivo (obligatorio al RECHAZAR) -->
+        <div class="field" *ngIf="gestionarEstadoValue === 'RECHAZADA'">
+          <label class="field__label">¿Por qué se rechaza esta solicitud? <span class="required">*</span></label>
+          <textarea
+            formControlName="motivoRechazo"
+            rows="4"
+            maxlength="500"
+            placeholder="Explica el motivo; lo verá quien hizo la solicitud"
+            class="field__input field__textarea"
+          ></textarea>
+          <small class="field__hint field__counter">
+            {{ gestionarForm.get('motivoRechazo')?.value?.length || 0 }}/500
+          </small>
+          <small class="field__error" *ngIf="gestionarForm.get('motivoRechazo')?.invalid && gestionarForm.get('motivoRechazo')?.touched">
+            Debes indicar el motivo del rechazo
+          </small>
+        </div>
       </div>
       
       <!-- Archivos (solo cuando se edita o se ve) -->
@@ -414,7 +600,7 @@
   <ng-template pTemplate="footer">
     <div class="dialog-footer">
       <button class="btn-cancel" type="button" (click)="dialogVisible = false">
-        {{ viewOnly ? 'Cerrar' : 'Cancelar' }}
+        {{ viewOnly && !evaluando ? 'Cerrar' : 'Cancelar' }}
       </button>
       <button
         *ngIf="!viewOnly"
@@ -424,70 +610,19 @@
         [disabled]="saving"
       >
         <i class="ti ti-device-floppy"></i>
-        {{ saving ? 'Guardando…' : 'Guardar' }}
+        {{ saving ? 'Guardando…' : (reenviando ? 'Reenviar solicitud' : 'Guardar') }}
       </button>
-    </div>
-  </ng-template>
-</p-dialog>
-
-<!-- ── Modal gestionar ── -->
-<p-dialog
-  [(visible)]="gestionarDialogVisible"
-  [modal]="true"
-  [draggable]="false"
-  [resizable]="false"
-  [style]="{ width: '460px' }"
-  header="Evaluar solicitud"
->
-  <p class="gestionar-info" *ngIf="gestionarItem">
-    <strong>{{ gestionarItem.titulo }}</strong>
-  </p>
-
-  <form [formGroup]="gestionarForm">
-    <div class="form-grid">
-      <!-- Estado destino -->
-      <div class="field field--full">
-        <label class="field__label">Nuevo estado <span class="required">*</span></label>
-        <p-select
-          formControlName="estado"
-          [options]="gestionarEstadoOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Seleccione un estado"
-          [style]="{ width: '100%' }"
-          appendTo="body"
-        />
-        <small class="field__error" *ngIf="gestionarForm.get('estado')?.invalid && gestionarForm.get('estado')?.touched">
-          El estado es requerido
-        </small>
-      </div>
-
-      <!-- Carrera (opcional al APROBAR: vincula la solicitud a una carrera) -->
-      <div class="field field--full" *ngIf="gestionarEstadoValue === 'APROBADA'">
-        <label class="field__label">Carrera (opcional)</label>
-        <p-select
-          formControlName="carreraId"
-          [options]="carrerasDropdown"
-          optionLabel="label"
-          optionValue="id"
-          placeholder="Seleccione una carrera"
-          [style]="{ width: '100%' }"
-          [scrollHeight]="'250px'"
-          appendTo="body"
-        />
-      </div>
-    </div>
-  </form>
-
-  <ng-template pTemplate="footer">
-    <div class="dialog-footer">
-      <button class="btn-cancel" type="button" (click)="gestionarDialogVisible = false">
-        Cancelar
-      </button>
-      <button class="btn-save" type="button" (click)="saveGestionar()" [disabled]="gestionarSaving">
+      <button
+        *ngIf="evaluando"
+        class="btn-save"
+        type="button"
+        (click)="saveGestionar()"
+        [disabled]="gestionarSaving"
+      >
         <i class="ti ti-check"></i>
-        {{ gestionarSaving ? 'Guardando…' : 'Confirmar' }}
+        {{ gestionarSaving ? 'Guardando…' : 'Confirmar evaluación' }}
       </button>
     </div>
   </ng-template>
 </p-dialog>
+

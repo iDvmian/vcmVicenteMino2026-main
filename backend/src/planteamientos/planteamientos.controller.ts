@@ -60,6 +60,15 @@ export class PlanteamientosController {
     return this.planteamientosService.findMisPlanteamientos(req.user.id, query);
   }
 
+  // Debe ir antes de /:id
+  @Get('mis-vinculaciones')
+  @Roles(Role.DOCENTE, Role.ADMIN)
+  @ApiOperation({ summary: 'Historial de vinculaciones con el medio del docente (planteamientos y sus proyectos)' })
+  @ApiOkResponse({ description: 'Vinculaciones obtenidas exitosamente' })
+  misVinculaciones(@Request() req: { user: CurrentUser }) {
+    return this.planteamientosService.misVinculaciones(req.user.id);
+  }
+
   @Get()
   @Roles(
     Role.ADMIN,
@@ -133,8 +142,9 @@ export class PlanteamientosController {
   gestionar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: GestionarPlanteamientoDto,
+    @Request() req: { user: CurrentUser },
   ) {
-    return this.planteamientosService.gestionar(id, dto);
+    return this.planteamientosService.gestionar(id, dto, req.user.id);
   }
 
   @Delete(':id')

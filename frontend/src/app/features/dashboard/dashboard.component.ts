@@ -1,12 +1,15 @@
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { DatePickerModule } from 'primeng/datepicker';
 import { SelectModule } from 'primeng/select';
 import { ButtonModule } from 'primeng/button';
 import { ChartModule } from 'primeng/chart';
 import { AuthService } from '../../core/services/auth.service';
 import { ReportesService } from '../../core/services/reportes.service';
+import { SolicitudesService } from '../../core/services/solicitudes.service';
+import { MiResumen } from '../../core/models/mi-resumen.model';
 import { CarrerasService } from '../../core/services/carreras.service';
 import { User } from '../../core/models/user.model';
 import { Dashboard } from '../../core/models/dashboard.model';
@@ -25,7 +28,7 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePickerModule, SelectModule, ButtonModule, ChartModule],
+  imports: [CommonModule, FormsModule, RouterLink, DatePickerModule, SelectModule, ButtonModule, ChartModule],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -36,6 +39,7 @@ export class DashboardComponent implements OnInit {
     private authService: AuthService,
     private reportes: ReportesService,
     private carrerasService: CarrerasService,
+    private solicitudesService: SolicitudesService,
   ) {}
 
   get currentUser(): User | null {
@@ -48,8 +52,67 @@ export class DashboardComponent implements OnInit {
     return rol === 'DECANO' || rol === 'ADMIN';
   }
 
+  // ── Inicio del solicitante ─────────────────────────────────────────────────
+  get esCliente(): boolean {
+    return this.currentUser?.rol === 'CLIENTE';
+  }
+
+  resumen: MiResumen | null = null;
+  resumenCargando = false;
+  resumenError = false;
+
+  /** Alertas que el solicitante ya cerró (se recuerdan en su navegador). */
+  private alertasCerradas = new Set<number>();
+
+  private get claveAlertas(): string {
+    return `vcm_alertas_cerradas_${this.currentUser?.id ?? 0}`;
+  }
+
+  private leerAlertasCerradas(): void {
+    try {
+      const raw = localStorage.getItem(this.claveAlertas);
+      this.alertasCerradas = new Set<number>(raw ? JSON.parse(raw) : []);
+    } catch {
+      this.alertasCerradas = new Set<number>();
+    }
+  }
+
+  cerrarAlerta(id: number): void {
+    this.alertasCerradas.add(id);
+    try {
+      localStorage.setItem(this.claveAlertas, JSON.stringify([...this.alertasCerradas]));
+    } catch {
+      // sin almacenamiento disponible: la alerta se oculta solo mientras la página esté abierta
+    }
+  }
+
+  /** Solicitudes rechazadas más recientes (con su motivo) que el solicitante aún no cerró. */
+  get rechazadasRecientes() {
+    return (this.resumen?.solicitudes ?? [])
+      .filter(s => s.estado === 'RECHAZADA' && !this.alertasCerradas.has(s.id))
+      .slice(0, 3);
+  }
+
+  cargarResumen(): void {
+    this.resumenCargando = true;
+    this.resumenError = false;
+    this.solicitudesService.getMiResumen().subscribe({
+      next: (r) => {
+        this.resumen = r;
+        this.resumenCargando = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.resumenCargando = false;
+        this.resumenError = true;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   // ── Filtros ────────────────────────────────────────────────────────────────
-  rangoFechas: Date[] | null = null;
+  fechaDesde: Date | null = null;
+  fechaHasta: Date | null = null;
   carreraId: number | null = null;
   tipoIntervencion: string | null = null;
   carreraOptions: { label: string; value: number }[] = [];
@@ -76,6 +139,11 @@ export class DashboardComponent implements OnInit {
   readonly optsBarraH = { ...this.baseOptions(false), indexAxis: 'y' as const };
 
   ngOnInit(): void {
+    if (this.esCliente) {
+      this.leerAlertasCerradas();
+      this.cargarResumen();
+      return;
+    }
     if (!this.showPanel) return;
     this.carrerasService.getCarreras({ limit: 100 }).subscribe({
       next: (res) => {
@@ -103,35 +171,25 @@ export class DashboardComponent implements OnInit {
     return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
-  onRangoSelect(): void {
-    const [ini, fin] = this.rangoFechas ?? [];
-    if (ini && fin) this.cargar();
-  }
-
-  onRangoClear(): void {
-    this.rangoFechas = null;
-    this.cargar();
-  }
-
   limpiarFiltros(): void {
-    this.rangoFechas = null;
+    this.fechaDesde = null;
+    this.fechaHasta = null;
     this.carreraId = null;
     this.tipoIntervencion = null;
     this.cargar();
   }
 
   get hayFiltros(): boolean {
-    return !!(this.rangoFechas?.length || this.carreraId || this.tipoIntervencion);
+    return !!(this.fechaDesde || this.fechaHasta || this.carreraId || this.tipoIntervencion);
   }
 
   cargar(): void {
-    const [ini, fin] = this.rangoFechas ?? [];
     this.loading = true;
     this.error = false;
     this.reportes
       .getDashboard({
-        fechaDesde: ini ? this.toIso(ini) : null,
-        fechaHasta: fin ? this.toIso(fin) : ini ? this.toIso(ini) : null,
+        fechaDesde: this.fechaDesde ? this.toIso(this.fechaDesde) : null,
+        fechaHasta: this.fechaHasta ? this.toIso(this.fechaHasta) : null,
         carreraId: this.carreraId,
         tipoIntervencion: this.tipoIntervencion,
       })

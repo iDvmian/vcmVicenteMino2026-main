@@ -10,7 +10,7 @@ export interface DashboardResumen {
   };
   tasaConversion: number;
   horasHombre: number;
-  participantes: { docentes: number; estudiantes: number; externos: number; total: number };
+  participantes: { docentes: number; estudiantes: number; docentesExternos: number; alumnosExternos: number; otrosExternos: number; total: number };
   alumnosVoluntarios: number;
   duracionPromedioDias: number | null;
   tiempoRespuestaPromedioDias: number | null;

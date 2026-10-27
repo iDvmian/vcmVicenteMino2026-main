@@ -3,7 +3,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { Solicitud, EstadoSolicitud } from '../models/solicitud.model';
+import { Solicitud, EstadoSolicitud, TipoCliente } from '../models/solicitud.model';
+import { MiResumen } from '../models/mi-resumen.model';
 import { PaginatedResponse } from '../models/paginated-response.model';
 
 export interface CreateSolicitudDto {
@@ -13,6 +14,10 @@ export interface CreateSolicitudDto {
   direccion: string;
   numeroDireccion?: string;
   telefono: string;
+  tipoCliente: TipoCliente;
+  tipoClienteOtro?: string;
+  nombreOrganizacion?: string;
+  personasPrevistas?: number | null;
   carreraId?: number;
 }
 
@@ -23,12 +28,17 @@ export interface UpdateSolicitudDto {
   direccion?: string;
   numeroDireccion?: string | null;
   telefono?: string;
+  tipoCliente?: TipoCliente;
+  tipoClienteOtro?: string;
+  nombreOrganizacion?: string;
+  personasPrevistas?: number | null;
   carreraId?: number;
 }
 
 export interface GestionarSolicitudDto {
   estado: EstadoSolicitud;
   carreraId?: number;
+  motivoRechazo?: string;
 }
 
 function buildParams(obj: Record<string, any>): HttpParams {
@@ -44,6 +54,10 @@ export class SolicitudesService {
   private readonly apiUrl = `${environment.apiUrl}/solicitudes`;
 
   constructor(private http: HttpClient) {}
+
+  getMiResumen(): Observable<MiResumen> {
+    return this.http.get<any>(`${this.apiUrl}/mi-resumen`).pipe(map(r => r.data));
+  }
 
   getMisSolicitudes(
     params: { estado?: EstadoSolicitud | null; page?: number; limit?: number } = {},
@@ -63,6 +77,7 @@ export class SolicitudesService {
       fechaHasta?: string | null;
       solicitante?: string | null;
       orden?: 'recientes' | 'antiguas';
+      sinPlanteamiento?: boolean;
       page?: number;
       limit?: number;
     } = {},

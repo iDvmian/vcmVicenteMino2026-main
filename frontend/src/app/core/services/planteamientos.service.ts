@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 import { Planteamiento, EstadoPlanteamiento } from '../models/planteamiento.model';
 import { TipoIntervencion, UnidadDuracion } from '../constants/tipos-intervencion';
 import { PaginatedResponse } from '../models/paginated-response.model';
+import { Vinculacion } from '../models/mis-vinculaciones.model';
 
 export interface CreatePlanteamientoDto {
   solicitudId: number;
@@ -28,6 +29,7 @@ export interface UpdatePlanteamientoDto {
 
 export interface GestionarPlanteamientoDto {
   estado: 'APROBADO' | 'RECHAZADO';
+  motivoRechazo?: string;
 }
 
 function buildParams(obj: Record<string, any>): HttpParams {
@@ -44,8 +46,12 @@ export class PlanteamientosService {
 
   constructor(private http: HttpClient) {}
 
+  getMisVinculaciones(): Observable<Vinculacion[]> {
+    return this.http.get<any>(`${this.apiUrl}/mis-vinculaciones`).pipe(map(r => r.data));
+  }
+
   getMisPlanteamientos(
-    params: { estado?: EstadoPlanteamiento | null; solicitudId?: number | null; page?: number; limit?: number } = {},
+    params: Record<string, any> = {},
   ): Observable<PaginatedResponse<Planteamiento>> {
     return this.http
       .get<any>(`${this.apiUrl}/mis-planteamientos`, { params: buildParams(params) })
@@ -53,7 +59,7 @@ export class PlanteamientosService {
   }
 
   getAll(
-    params: { estado?: EstadoPlanteamiento | null; solicitudId?: number | null; page?: number; limit?: number } = {},
+    params: Record<string, any> = {},
   ): Observable<PaginatedResponse<Planteamiento>> {
     return this.http
       .get<any>(this.apiUrl, { params: buildParams(params) })

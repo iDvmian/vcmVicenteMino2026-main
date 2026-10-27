@@ -18,6 +18,36 @@ enum Role {
   CLIENTE
 }
 
+enum EtapaSeguimiento {
+  SOLICITUD_CREADA
+  SOLICITUD_APROBADA
+  SOLICITUD_RECHAZADA
+  PLANTEAMIENTO_CREADO
+  PLANTEAMIENTO_APROBADO
+  PLANTEAMIENTO_RECHAZADO
+  PLANTEAMIENTO_REENVIADO
+  PROYECTO_CREADO
+  PROYECTO_EN_PROCESO
+  PROYECTO_PAUSADO
+  PROYECTO_FINALIZADO
+  PROYECTO_CANCELADO
+}
+
+enum OrigenSolicitud {
+  EXTERNA
+  DOCENTE
+}
+
+enum TipoCliente {
+  JUNTA_VECINOS
+  ONG
+  ESTABLECIMIENTO_EDUCACIONAL
+  EMPRESA_PRIVADA
+  ORGANISMO_PUBLICO
+  PERSONA_NATURAL
+  OTRO
+}
+
 enum EstadoSolicitud {
   PENDIENTE
   APROBADA
@@ -76,6 +106,7 @@ model User {
 
   solicitudesComoCliente    Solicitud[]     @relation("ClienteSolicitud")
   planteamientosComoDocente Planteamiento[] @relation("DocentePlanteamiento")
+  historialEtapas           HistorialEtapa[] @relation("UsuarioHistorial")
   observacionesComoAutor    Observacion[]   @relation("AutorObservacion")
 }
 
@@ -122,12 +153,19 @@ model Solicitud {
   numeroDireccion String?
   telefono    String?
   estado      EstadoSolicitud   @default(PENDIENTE)
+  motivoRechazo String?         @db.Text
+  tipoCliente TipoCliente?
+  tipoClienteOtro String?       @db.VarChar(100)
+  origen      OrigenSolicitud   @default(EXTERNA)
+  nombreOrganizacion String?    @db.VarChar(150)
+  personasPrevistas  Int?
   carreraId   Int?
   carrera     Carrera?          @relation(fields: [carreraId], references: [id])
   clienteId   Int
   cliente     User              @relation("ClienteSolicitud", fields: [clienteId], references: [id])
   archivos    ArchivoSolicitud[]
   planteamiento Planteamiento?
+  historial   HistorialEtapa[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 }
@@ -151,6 +189,7 @@ model Planteamiento {
   tipoIntervencion      TipoIntervencion?
   tipoIntervencionOtro  String?
   estado         EstadoPlanteamiento   @default(PENDIENTE)
+  motivoRechazo  String?               @db.Text
   solicitudId    Int                   @unique
   solicitud      Solicitud             @relation(fields: [solicitudId], references: [id])
   docenteId      Int
@@ -177,7 +216,9 @@ model Proyecto {
   fechaFin        DateTime
   participantesDocentes     Int?
   participantesEstudiantes  Int?
-  participantesExternos     Int?
+  participantesDocentesExternos Int?
+  participantesAlumnosExternos  Int?
+  participantesOtrosExternos    Int?
   planteamientoId Int              @unique
   planteamiento   Planteamiento    @relation(fields: [planteamientoId], references: [id])
   alumnos         ProyectoAlumno[]
@@ -214,4 +255,20 @@ model Observacion {
   autorId     Int
   autor       User     @relation("AutorObservacion", fields: [autorId], references: [id])
   createdAt   DateTime @default(now())
+}
+
+/// Seguimiento: una fila por cada hito de una iniciativa (solicitud -> planteamiento -> proyecto).
+/// Solo se agregan registros; `aproximado` marca los reconstruidos a partir de createdAt/updatedAt.
+model HistorialEtapa {
+  id          Int              @id @default(autoincrement())
+  solicitudId Int
+  solicitud   Solicitud        @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
+  etapa       EtapaSeguimiento
+  fecha       DateTime         @default(now())
+  usuarioId   Int?
+  usuario     User?            @relation("UsuarioHistorial", fields: [usuarioId], references: [id], onDelete: SetNull)
+  aproximado  Boolean          @default(false)
+
+  @@index([solicitudId, fecha])
+  @@index([etapa, fecha])
 }

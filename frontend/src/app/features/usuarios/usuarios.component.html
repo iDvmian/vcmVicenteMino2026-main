@@ -79,7 +79,7 @@
           <td class="col-email" [title]="user.email">{{ user.email }}</td>
           <td class="col-telefono">{{ user.telefono ?? '—' }}</td>
           <td class="col-rol">
-            <p-tag [value]="user.rol" [style]="getRolStyle(user.rol)" />
+            <p-tag [value]="user.rol.replace('_', ' ')" [style]="getRolStyle(user.rol)" />
           </td>
           <td class="col-estado">
             <p-tag

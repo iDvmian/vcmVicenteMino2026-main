@@ -1,0 +1,115 @@
+<div class="mv">
+  <header class="mv__header">
+    <h1 class="mv__title"><i class="ti ti-heart-handshake"></i> Mis vinculaciones con el medio</h1>
+    <p class="mv__subtitle">Historial de las iniciativas que has llevado adelante: desde el planteamiento hasta el proyecto.</p>
+  </header>
+
+  <section class="mv__filters">
+    <p-select
+      [(ngModel)]="fAnio"
+      (ngModelChange)="recalcular()"
+      [options]="anioOptions"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Año"
+      [showClear]="true"
+      [style]="{ 'min-width': '130px' }"
+      appendTo="body"
+    />
+    <p-select
+      [(ngModel)]="fGrupo"
+      (ngModelChange)="recalcular()"
+      [options]="grupoOptions"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Situación"
+      [showClear]="true"
+      [style]="{ 'min-width': '180px' }"
+      appendTo="body"
+    />
+    <p-select
+      [(ngModel)]="fTipo"
+      (ngModelChange)="recalcular()"
+      [options]="tipoOptions"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="Tipo de intervención"
+      [showClear]="true"
+      [style]="{ 'min-width': '230px' }"
+      [scrollHeight]="'260px'"
+      appendTo="body"
+    />
+    <button class="btn-secondary" type="button" (click)="limpiar()" [disabled]="!hayFiltros">
+      <i class="ti ti-filter-off"></i> Limpiar filtros
+    </button>
+  </section>
+
+  <p *ngIf="loading && !items.length" class="mv__state">Cargando tus vinculaciones…</p>
+  <p *ngIf="error" class="mv__state mv__state--error">No se pudo cargar el historial. Intenta nuevamente.</p>
+
+  <ng-container *ngIf="!loading && !error">
+    <p *ngIf="!items.length" class="mv__state">
+      Aún no tienes vinculaciones. Aparecerán aquí cuando elabores un planteamiento sobre una solicitud aprobada.
+    </p>
+
+    <ng-container *ngIf="items.length">
+      <section class="mv__kpis">
+        <article class="kpi"><span class="kpi__n">{{ kpi.total }}</span><span class="kpi__l">Vinculaciones</span></article>
+        <article class="kpi kpi--ok"><span class="kpi__n">{{ kpi.finalizadas }}</span><span class="kpi__l">Finalizadas</span></article>
+        <article class="kpi kpi--cel"><span class="kpi__n">{{ kpi.enCurso }}</span><span class="kpi__l">En curso</span></article>
+        <article class="kpi kpi--warn"><span class="kpi__n">{{ kpi.enTramite }}</span><span class="kpi__l">En trámite</span></article>
+        <article class="kpi"><span class="kpi__n">{{ kpi.participantes | number:'1.0-0' }}</span><span class="kpi__l">Participantes</span></article>
+        <article class="kpi"><span class="kpi__n">{{ kpi.horas | number:'1.0-0' }}</span><span class="kpi__l">Horas hombre</span></article>
+      </section>
+
+      <section class="mv__charts" *ngIf="kpi.total">
+        <div class="card">
+          <h2 class="card__title">Por año</h2>
+          <div class="card__chart"><p-chart type="bar" [data]="chartAnio" [options]="optsBarra" height="220px" /></div>
+        </div>
+        <div class="card">
+          <h2 class="card__title">Por tipo de intervención</h2>
+          <div class="card__chart"><p-chart type="bar" [data]="chartTipo" [options]="optsBarraH" height="220px" /></div>
+        </div>
+      </section>
+
+      <section class="card card--table">
+        <p-table [value]="filtrados" [paginator]="filtrados.length > 10" [rows]="10" styleClass="p-datatable-sm">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Iniciativa</th>
+              <th>Solicitante</th>
+              <th>Tipo</th>
+              <th>Situación</th>
+              <th>Periodo</th>
+              <th class="num">Participantes</th>
+              <th class="num">Horas</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-v>
+            <tr>
+              <td class="col-titulo" [title]="v.titulo">
+                {{ v.titulo }}
+                <small *ngIf="v.ciudad" class="muted">{{ v.ciudad }}</small>
+              </td>
+              <td>{{ v.organizacion }}</td>
+              <td>{{ getTipoLabel(v.tipoIntervencion, v.tipoIntervencionOtro) }}</td>
+              <td><p-tag [value]="v.etapa" [style]="getGrupoStyle(v.grupo)" /></td>
+              <td>
+                <ng-container *ngIf="v.fechaInicio; else sinFechas">
+                  {{ v.fechaInicio | date:'dd/MM/yyyy' }} – {{ v.fechaFin | date:'dd/MM/yyyy' }}
+                </ng-container>
+                <ng-template #sinFechas><span class="muted">—</span></ng-template>
+              </td>
+              <td class="num">{{ v.proyectoId ? v.participantes : '—' }}</td>
+              <td class="num">{{ v.proyectoId ? v.horasHombre : '—' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="7"><div class="empty">Ninguna vinculación coincide con los filtros.</div></td></tr>
+          </ng-template>
+        </p-table>
+      </section>
+    </ng-container>
+  </ng-container>
+</div>

@@ -1,9 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { CurrentUser } from '../auth/strategies/jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAlumnoVoluntarioDto } from './dto/create-alumno-voluntario.dto';
 import { QueryAlumnosVoluntariosDto } from './dto/query-alumnos-voluntarios.dto';
@@ -13,12 +16,32 @@ import { UpdateAlumnoVoluntarioDto } from './dto/update-alumno-voluntario.dto';
 export class AlumnosVoluntariosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: QueryAlumnosVoluntariosDto) {
+  /**
+   * El encargado de carrera solo opera sobre los alumnos de su propia carrera.
+   * Devuelve el id de esa carrera (o -1 si no tiene ninguna, para que no vea ni toque nada);
+   * para el resto de los roles devuelve null (sin restricción).
+   */
+  private async carreraRestringida(user: CurrentUser): Promise<number | null> {
+    // El encargado y el docente solo ven alumnos de su propia carrera
+    if (user.rol !== Role.ENCARGADO_CARRERA && user.rol !== Role.DOCENTE) return null;
+    const u = await this.prisma.user.findUnique({ where: { id: user.id }, select: { carreraId: true } });
+    return u?.carreraId ?? -1;
+  }
+
+  private verificarCarrera(restringida: number | null, carreraId: number): void {
+    if (restringida !== null && restringida !== carreraId) {
+      throw new ForbiddenException('Solo puedes acceder a alumnos voluntarios de tu carrera');
+    }
+  }
+
+  async findAll(query: QueryAlumnosVoluntariosDto, user: CurrentUser) {
     const { carreraId, estado, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
-    if (carreraId !== undefined) where.carreraId = carreraId;
+    const restringida = await this.carreraRestringida(user);
+    if (restringida !== null) where.carreraId = restringida;
+    else if (carreraId !== undefined) where.carreraId = carreraId;
     if (estado !== undefined) where.estado = estado === 'true';
 
     const [items, total] = await Promise.all([
@@ -39,18 +62,21 @@ export class AlumnosVoluntariosService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, user: CurrentUser) {
     const alumno = await this.prisma.alumnoVoluntario.findUnique({
       where: { id },
       include: { carrera: { include: { facultad: true } } },
     });
 
     if (!alumno) throw new NotFoundException(`Alumno voluntario con id ${id} no encontrado`);
+    this.verificarCarrera(await this.carreraRestringida(user), alumno.carreraId);
 
     return { data: alumno, message: 'Alumno voluntario obtenido exitosamente', statusCode: 200 };
   }
 
-  async create(dto: CreateAlumnoVoluntarioDto) {
+  async create(dto: CreateAlumnoVoluntarioDto, user: CurrentUser) {
+    this.verificarCarrera(await this.carreraRestringida(user), dto.carreraId);
+
     const rutTaken = await this.prisma.alumnoVoluntario.findUnique({
       where: { rut: dto.rut },
     });
@@ -72,9 +98,13 @@ export class AlumnosVoluntariosService {
     return { data: alumno, message: 'Alumno voluntario creado', statusCode: 201 };
   }
 
-  async update(id: number, dto: UpdateAlumnoVoluntarioDto) {
+  async update(id: number, dto: UpdateAlumnoVoluntarioDto, user: CurrentUser) {
     const existing = await this.prisma.alumnoVoluntario.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Alumno voluntario con id ${id} no encontrado`);
+
+    const restringida = await this.carreraRestringida(user);
+    this.verificarCarrera(restringida, existing.carreraId);
+    if (dto.carreraId !== undefined) this.verificarCarrera(restringida, dto.carreraId);
 
     delete (dto as Partial<UpdateAlumnoVoluntarioDto>).rut;
 
@@ -99,9 +129,10 @@ export class AlumnosVoluntariosService {
     return { data: alumno, message: 'Alumno voluntario actualizado', statusCode: 200 };
   }
 
-  async remove(id: number) {
+  async remove(id: number, user: CurrentUser) {
     const existing = await this.prisma.alumnoVoluntario.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Alumno voluntario con id ${id} no encontrado`);
+    this.verificarCarrera(await this.carreraRestringida(user), existing.carreraId);
 
     const proyectosCount = await this.prisma.proyectoAlumno.count({ where: { alumnoId: id } });
     if (proyectosCount > 0) {
