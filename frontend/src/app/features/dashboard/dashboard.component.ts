@@ -11,6 +11,8 @@ import { ReportesService } from '../../core/services/reportes.service';
 import { SolicitudesService } from '../../core/services/solicitudes.service';
 import { MiResumen } from '../../core/models/mi-resumen.model';
 import { CarrerasService } from '../../core/services/carreras.service';
+import { FacultadesService } from '../../core/services/facultades.service';
+import { UsuariosService } from '../../core/services/usuarios.service';
 import { User } from '../../core/models/user.model';
 import { Dashboard } from '../../core/models/dashboard.model';
 import { TIPOS_INTERVENCION } from '../../core/constants/tipos-intervencion';
@@ -40,17 +42,28 @@ export class DashboardComponent implements OnInit {
     private reportes: ReportesService,
     private carrerasService: CarrerasService,
     private solicitudesService: SolicitudesService,
+    private facultadesService: FacultadesService,
+    private usuariosService: UsuariosService,
   ) {}
 
   get currentUser(): User | null {
     return this.authService.getCurrentUser();
   }
 
-  /** El panel de indicadores es solo para Decano y Admin; el resto ve la bienvenida. */
+  /** El panel de indicadores es para Decano, Director de VCM y Admin; el resto ve la bienvenida. */
   get showPanel(): boolean {
     const rol = this.currentUser?.rol;
-    return rol === 'DECANO' || rol === 'ADMIN';
+    return rol === 'DECANO' || rol === 'DIRECTOR_VCM' || rol === 'ADMIN';
   }
+
+  /** Director y Admin ven todas las facultades (con comparación); el Decano solo la suya. */
+  get esGlobal(): boolean {
+    const rol = this.currentUser?.rol;
+    return rol === 'DIRECTOR_VCM' || rol === 'ADMIN';
+  }
+
+  /** Nombre de la facultad del Decano, para mostrarlo en el encabezado. */
+  facultadDecano: string | null = null;
 
   // ── Inicio del solicitante ─────────────────────────────────────────────────
   get esCliente(): boolean {
@@ -113,9 +126,11 @@ export class DashboardComponent implements OnInit {
   // ── Filtros ────────────────────────────────────────────────────────────────
   fechaDesde: Date | null = null;
   fechaHasta: Date | null = null;
+  facultadId: number | null = null;
   carreraId: number | null = null;
   tipoIntervencion: string | null = null;
-  carreraOptions: { label: string; value: number }[] = [];
+  facultadOptions: { label: string; value: number }[] = [];
+  private todasCarreras: { label: string; value: number; facultadId: number }[] = [];
   readonly tipoOptions = TIPOS_INTERVENCION;
 
   // ── Datos ──────────────────────────────────────────────────────────────────
@@ -128,6 +143,7 @@ export class DashboardComponent implements OnInit {
   chartProyEstado: any;
   chartTipo: any;
   chartCarrera: any;
+  chartFacultad: any;
   chartComuna: any;
 
   readonly optsLinea = this.baseOptions(true);
@@ -147,10 +163,26 @@ export class DashboardComponent implements OnInit {
     if (!this.showPanel) return;
     this.carrerasService.getCarreras({ limit: 100 }).subscribe({
       next: (res) => {
-        this.carreraOptions = res.items.map((c) => ({ label: c.nombre, value: c.id }));
+        this.todasCarreras = res.items.map((c) => ({ label: c.nombre, value: c.id, facultadId: c.facultadId }));
         this.cdr.detectChanges();
       },
     });
+    if (this.esGlobal) {
+      this.facultadesService.getFacultades({ limit: 100 }).subscribe({
+        next: (res) => {
+          this.facultadOptions = res.items.map((f) => ({ label: f.nombre, value: f.id }));
+          this.cdr.detectChanges();
+        },
+      });
+    } else if (this.currentUser?.rol === 'DECANO') {
+      this.usuariosService.getMiPerfil().subscribe({
+        next: (u) => {
+          this.facultadDecano = u.facultad?.nombre ?? null;
+          this.cdr.detectChanges();
+        },
+        error: () => {},
+      });
+    }
     this.cargar();
   }
 
@@ -171,16 +203,36 @@ export class DashboardComponent implements OnInit {
     return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
+  /** Carreras que se ofrecen en el filtro: las de la facultad elegida (o todas las visibles). */
+  get carreraOptions(): { label: string; value: number }[] {
+    return this.todasCarreras.filter((c) => this.facultadId === null || c.facultadId === this.facultadId);
+  }
+
+  /** Al cambiar de facultad se limpia la carrera para no dejar una combinación imposible. */
+  onFacultadChange(): void {
+    this.carreraId = null;
+    this.cargar();
+  }
+
+  /** Desde la tabla comparativa: baja de lo general a una facultad (o vuelve a todas al repetir el clic). */
+  seleccionarFacultad(id: number): void {
+    if (!this.esGlobal) return;
+    this.facultadId = this.facultadId === id ? null : id;
+    this.carreraId = null;
+    this.cargar();
+  }
+
   limpiarFiltros(): void {
     this.fechaDesde = null;
     this.fechaHasta = null;
+    this.facultadId = null;
     this.carreraId = null;
     this.tipoIntervencion = null;
     this.cargar();
   }
 
   get hayFiltros(): boolean {
-    return !!(this.fechaDesde || this.fechaHasta || this.carreraId || this.tipoIntervencion);
+    return !!(this.fechaDesde || this.fechaHasta || this.facultadId || this.carreraId || this.tipoIntervencion);
   }
 
   cargar(): void {
@@ -190,6 +242,7 @@ export class DashboardComponent implements OnInit {
       .getDashboard({
         fechaDesde: this.fechaDesde ? this.toIso(this.fechaDesde) : null,
         fechaHasta: this.fechaHasta ? this.toIso(this.fechaHasta) : null,
+        facultadId: this.esGlobal ? this.facultadId : null,
         carreraId: this.carreraId,
         tipoIntervencion: this.tipoIntervencion,
       })
@@ -220,6 +273,15 @@ export class DashboardComponent implements OnInit {
 
   private armarGraficos(d: Dashboard): void {
     const r = d.resumen;
+
+    this.chartFacultad = {
+      labels: (d.porFacultad ?? []).map((f) => f.etiqueta),
+      datasets: [
+        { label: 'Solicitudes', data: (d.porFacultad ?? []).map((f) => f.solicitudes), backgroundColor: CELESTE },
+        { label: 'Proyectos', data: (d.porFacultad ?? []).map((f) => f.proyectos), backgroundColor: AZUL },
+        { label: 'Proyectos finalizados', data: (d.porFacultad ?? []).map((f) => f.finalizados), backgroundColor: VERDE },
+      ],
+    };
 
     this.chartMes = {
       labels: d.porMes.map((m) => this.mesLabel(m.mes)),

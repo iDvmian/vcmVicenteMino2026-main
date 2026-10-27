@@ -267,7 +267,7 @@ export class SolicitudesComponent implements OnInit, OnDestroy {
   get currentUser() { return this.authService.getCurrentUser(); }
   get isAdmin() { return this.currentUser?.rol === 'ADMIN'; }
   get canGestionar() { return ['ADMIN', 'GESTOR_VCM'].includes(this.currentUser?.rol ?? ''); }
-  get useAllEndpoint() { return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DOCENTE', 'DECANO'].includes(this.currentUser?.rol ?? ''); }
+  get useAllEndpoint() { return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DOCENTE', 'DECANO', 'DIRECTOR_VCM'].includes(this.currentUser?.rol ?? ''); }
   get canCreateSolicitud() { return ['ADMIN', 'GESTOR_VCM', 'CLIENTE', 'DOCENTE'].includes(this.currentUser?.rol ?? ''); }
   /** El docente propone una iniciativa propia: indica con quién trabaja y su carrera es la suya. */
   get esDocente() { return this.currentUser?.rol === 'DOCENTE'; }

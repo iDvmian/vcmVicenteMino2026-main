@@ -15,6 +15,7 @@ enum Role {
   ENCARGADO_CARRERA
   DOCENTE
   DECANO
+  DIRECTOR_VCM
   CLIENTE
 }
 
@@ -101,6 +102,9 @@ model User {
   estado    Boolean  @default(true)
   carreraId Int?
   carrera   Carrera? @relation(fields: [carreraId], references: [id])
+  /// Facultad a la que pertenece un Decano: solo ve la información de esa facultad
+  facultadId Int?
+  facultad   Facultad? @relation("DecanoFacultad", fields: [facultadId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -115,6 +119,7 @@ model Facultad {
   nombre    String
   etiqueta  String    @unique
   carreras  Carrera[]
+  decanos   User[]    @relation("DecanoFacultad")
   createdAt DateTime  @default(now())
 }
 

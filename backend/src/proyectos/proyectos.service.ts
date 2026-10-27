@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { EstadoProyecto, EtapaSeguimiento, Role } from '@prisma/client';
 import { registrarEtapa } from '../common/seguimiento';
+import { facultadDelDecano } from '../common/alcance';
 
 const ETAPA_POR_ESTADO: Record<EstadoProyecto, EtapaSeguimiento> = {
   EN_PROCESO: EtapaSeguimiento.PROYECTO_EN_PROCESO,
@@ -61,10 +62,17 @@ export class ProyectosService {
 
     const where: Record<string, unknown> = {};
 
+    // El Decano solo ve los proyectos de las carreras de su facultad
+    const facultadDecano = await facultadDelDecano(this.prisma, currentUser);
+    if (facultadDecano !== null) {
+      where.planteamiento = { solicitud: { carrera: { is: { facultadId: facultadDecano } } } };
+    }
+
     if (
       currentUser.rol !== Role.ADMIN &&
       currentUser.rol !== Role.GESTOR_VCM &&
-      currentUser.rol !== Role.DECANO
+      currentUser.rol !== Role.DECANO &&
+      currentUser.rol !== Role.DIRECTOR_VCM
     ) {
       if (currentUser.rol === Role.ENCARGADO_CARRERA) {
         const user = await this.prisma.user.findUnique({ where: { id: currentUser.id } });
@@ -113,6 +121,16 @@ export class ProyectosService {
     return { data: { items, total, page, limit }, message: 'Mis proyectos obtenidos exitosamente', statusCode: 200 };
   }
 
+  /** El Decano solo puede acceder a proyectos de su propia facultad. */
+  private async verificarFacultadDecano(currentUser: CurrentUser, proyectoId: number): Promise<void> {
+    const facultadDecano = await facultadDelDecano(this.prisma, currentUser);
+    if (facultadDecano === null) return;
+    const pertenece = await this.prisma.proyecto.count({
+      where: { id: proyectoId, planteamiento: { solicitud: { carrera: { is: { facultadId: facultadDecano } } } } },
+    });
+    if (!pertenece) throw new ForbiddenException('Este proyecto no pertenece a tu facultad');
+  }
+
   async findOne(id: number, currentUser: CurrentUser) {
     const proyecto = await this.prisma.proyecto.findUnique({ where: { id }, include: PROYECTO_INCLUDE });
     if (!proyecto) throw new NotFoundException(`Proyecto con id ${id} no encontrado`);
@@ -120,6 +138,7 @@ export class ProyectosService {
     if (currentUser.rol === Role.DOCENTE && proyecto.planteamiento.docenteId !== currentUser.id) {
       throw new ForbiddenException('No tienes permiso para ver este proyecto');
     }
+    await this.verificarFacultadDecano(currentUser, id);
 
     return { data: proyecto, message: 'Proyecto obtenido exitosamente', statusCode: 200 };
   }
@@ -389,6 +408,7 @@ export class ProyectosService {
     if (currentUser.rol === Role.DOCENTE && proyecto.planteamiento.docenteId !== currentUser.id) {
       throw new ForbiddenException('No tienes permiso para agregar observaciones a este proyecto');
     }
+    await this.verificarFacultadDecano(currentUser, proyectoId);
 
     const observacion = await this.prisma.observacion.create({
       data: { descripcion: dto.descripcion, proyectoId, autorId: currentUser.id },
@@ -401,6 +421,7 @@ export class ProyectosService {
   async getObservaciones(proyectoId: number, currentUser: CurrentUser) {
     const proyecto = await this.prisma.proyecto.findUnique({ where: { id: proyectoId } });
     if (!proyecto) throw new NotFoundException(`Proyecto con id ${proyectoId} no encontrado`);
+    await this.verificarFacultadDecano(currentUser, proyectoId);
 
     const observaciones = await this.prisma.observacion.findMany({
       where: { proyectoId },

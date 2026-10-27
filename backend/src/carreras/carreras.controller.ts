@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  Request,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -23,6 +24,7 @@ import {
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/strategies/jwt.strategy';
 import { CarrerasService } from './carreras.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { QueryCarrerasDto } from './dto/query-carreras.dto';
@@ -37,16 +39,16 @@ export class CarrerasController {
   @Get()
   @ApiOperation({ summary: 'Listar todas las carreras (paginado, filtro opcional por facultad)' })
   @ApiOkResponse({ description: 'Lista de carreras obtenida exitosamente' })
-  findAll(@Query() query: QueryCarrerasDto) {
-    return this.carrerasService.findAll(query);
+  findAll(@Query() query: QueryCarrerasDto, @Request() req: { user: CurrentUser }) {
+    return this.carrerasService.findAll(query, req.user);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una carrera por ID (incluye su facultad)' })
   @ApiOkResponse({ description: 'Carrera encontrada' })
   @ApiNotFoundResponse({ description: 'Carrera no encontrada' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.carrerasService.findOne(id);
+  findOne(@Param('id', ParseIntPipe) id: number, @Request() req: { user: CurrentUser }) {
+    return this.carrerasService.findOne(id, req.user);
   }
 
   @Post()

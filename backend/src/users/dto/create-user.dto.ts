@@ -52,4 +52,9 @@ export class CreateUserDto {
   @IsInt()
   @IsOptional()
   carreraId?: number;
+
+  @ApiPropertyOptional({ example: 1, description: 'Facultad del Decano (obligatoria para el rol DECANO)' })
+  @IsInt()
+  @IsOptional()
+  facultadId?: number;
 }

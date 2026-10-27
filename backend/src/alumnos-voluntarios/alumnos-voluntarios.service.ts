@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../auth/strategies/jwt.strategy';
+import { facultadDelDecano } from '../common/alcance';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAlumnoVoluntarioDto } from './dto/create-alumno-voluntario.dto';
 import { QueryAlumnosVoluntariosDto } from './dto/query-alumnos-voluntarios.dto';
@@ -42,6 +43,9 @@ export class AlumnosVoluntariosService {
     const restringida = await this.carreraRestringida(user);
     if (restringida !== null) where.carreraId = restringida;
     else if (carreraId !== undefined) where.carreraId = carreraId;
+    // El Decano solo ve los alumnos de las carreras de su facultad
+    const facultadDecano = await facultadDelDecano(this.prisma, user);
+    if (facultadDecano !== null) where.carrera = { facultadId: facultadDecano };
     if (estado !== undefined) where.estado = estado === 'true';
 
     const [items, total] = await Promise.all([
@@ -70,6 +74,10 @@ export class AlumnosVoluntariosService {
 
     if (!alumno) throw new NotFoundException(`Alumno voluntario con id ${id} no encontrado`);
     this.verificarCarrera(await this.carreraRestringida(user), alumno.carreraId);
+    const facultadDecano = await facultadDelDecano(this.prisma, user);
+    if (facultadDecano !== null && alumno.carrera?.facultadId !== facultadDecano) {
+      throw new ForbiddenException('Este alumno no pertenece a tu facultad');
+    }
 
     return { data: alumno, message: 'Alumno voluntario obtenido exitosamente', statusCode: 200 };
   }

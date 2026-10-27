@@ -16,8 +16,26 @@ export interface DashboardResumen {
   tiempoRespuestaPromedioDias: number | null;
 }
 
+export interface FacultadComparada {
+  facultadId: number;
+  facultad: string;
+  etiqueta: string;
+  solicitudes: number;
+  aprobadas: number;
+  rechazadas: number;
+  pendientes: number;
+  planteamientos: number;
+  proyectos: number;
+  finalizados: number;
+  horasHombre: number;
+  participantes: number;
+  alumnosVoluntarios: number;
+  tasaConversion: number;
+}
+
 export interface Dashboard {
   resumen: DashboardResumen;
+  porFacultad: FacultadComparada[];
   porMes: { mes: string; solicitudes: number; proyectos: number }[];
   porTipoIntervencion: { tipo: string; planteamientos: number; proyectos: number; horasHombre: number }[];
   porCarrera: { carrera: string; etiqueta: string; solicitudes: number; proyectos: number }[];
@@ -29,6 +47,7 @@ export interface Dashboard {
 export interface DashboardFiltros {
   fechaDesde?: string | null;
   fechaHasta?: string | null;
+  facultadId?: number | null;
   carreraId?: number | null;
   tipoIntervencion?: string | null;
 }

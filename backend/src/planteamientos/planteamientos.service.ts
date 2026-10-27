@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { registrarEtapa } from '../common/seguimiento';
+import { facultadDelDecano } from '../common/alcance';
 import { EstadoPlanteamiento, EstadoSolicitud, EtapaSeguimiento, Role, TipoIntervencion, UnidadDuracion } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -94,6 +95,10 @@ export class PlanteamientosService {
       if (currentUser.rol === Role.DOCENTE) where.docenteId = currentUser.id;
       if (query.solicitudId !== undefined) where.solicitudId = query.solicitudId;
     }
+
+    // El Decano solo ve los planteamientos de las carreras de su facultad
+    const facultadDecano = await facultadDelDecano(this.prisma, currentUser);
+    if (facultadDecano !== null) where.solicitud = { carrera: { is: { facultadId: facultadDecano } } };
 
     const [items, total] = await Promise.all([
       this.prisma.planteamiento.findMany({
@@ -233,6 +238,11 @@ export class PlanteamientosService {
 
     if (currentUser.rol === Role.DOCENTE && planteamiento.docenteId !== currentUser.id) {
       throw new ForbiddenException('No tienes permiso para ver este planteamiento');
+    }
+
+    const facultadDecano = await facultadDelDecano(this.prisma, currentUser);
+    if (facultadDecano !== null && planteamiento.solicitud.carrera?.facultadId !== facultadDecano) {
+      throw new ForbiddenException('Este planteamiento no pertenece a tu facultad');
     }
 
     return { data: planteamiento, message: 'Planteamiento obtenido exitosamente', statusCode: 200 };

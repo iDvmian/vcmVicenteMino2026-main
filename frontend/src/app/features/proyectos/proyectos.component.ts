@@ -152,7 +152,7 @@ export class ProyectosComponent implements OnInit {
   get canCreate() { return ['DOCENTE', 'ADMIN'].includes(this.currentUser?.rol ?? ''); }
 
   get useAllEndpoint() {
-    return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DECANO'].includes(this.currentUser?.rol ?? '');
+    return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DECANO', 'DIRECTOR_VCM'].includes(this.currentUser?.rol ?? '');
   }
 
   get showDocenteColumn() { return this.currentUser?.rol !== 'DOCENTE'; }

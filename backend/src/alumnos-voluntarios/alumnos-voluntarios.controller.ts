@@ -37,7 +37,7 @@ export class AlumnosVoluntariosController {
   constructor(private readonly alumnosVoluntariosService: AlumnosVoluntariosService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DOCENTE, Role.DECANO)
+  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DOCENTE, Role.DECANO, Role.DIRECTOR_VCM)
   @ApiOperation({ summary: 'Listar alumnos voluntarios (paginado, filtros por carrera y estado)' })
   @ApiOkResponse({ description: 'Lista de alumnos voluntarios obtenida exitosamente' })
   findAll(@Query() query: QueryAlumnosVoluntariosDto, @Request() req: { user: CurrentUser }) {
@@ -45,7 +45,7 @@ export class AlumnosVoluntariosController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DOCENTE, Role.DECANO)
+  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DOCENTE, Role.DECANO, Role.DIRECTOR_VCM)
   @ApiOperation({ summary: 'Obtener un alumno voluntario por ID' })
   @ApiOkResponse({ description: 'Alumno voluntario encontrado' })
   @ApiNotFoundResponse({ description: 'Alumno voluntario no encontrado' })

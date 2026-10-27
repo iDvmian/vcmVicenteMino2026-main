@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocument = require('pdfkit') as typeof import('pdfkit');
 import { CurrentUser } from '../auth/strategies/jwt.strategy';
+import { facultadDelDecano } from '../common/alcance';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryReporteProyectosDto } from './dto/query-reporte-proyectos.dto';
 
@@ -16,10 +17,17 @@ export class ReportesService {
   ): Promise<Buffer> {
     const where: Record<string, unknown> = {};
 
+    // El Decano solo ve los proyectos de las carreras de su facultad
+    const facultadDecano = await facultadDelDecano(this.prisma, currentUser);
+    if (facultadDecano !== null) {
+      where.planteamiento = { solicitud: { carrera: { is: { facultadId: facultadDecano } } } };
+    }
+
     if (
       currentUser.rol !== Role.ADMIN &&
       currentUser.rol !== Role.GESTOR_VCM &&
-      currentUser.rol !== Role.DECANO
+      currentUser.rol !== Role.DECANO &&
+      currentUser.rol !== Role.DIRECTOR_VCM
     ) {
       if (currentUser.rol === Role.ENCARGADO_CARRERA) {
         const user = await this.prisma.user.findUnique({ where: { id: currentUser.id } });
@@ -28,7 +36,12 @@ export class ReportesService {
         }
       }
     } else if (query.carreraId !== undefined) {
-      where.planteamiento = { solicitud: { carreraId: query.carreraId } };
+      where.planteamiento = {
+        solicitud: {
+          carreraId: query.carreraId,
+          ...(facultadDecano !== null && { carrera: { is: { facultadId: facultadDecano } } }),
+        },
+      };
     }
 
     if (query.estado !== undefined) where.estado = query.estado;

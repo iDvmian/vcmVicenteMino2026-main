@@ -23,6 +23,7 @@ export interface CreateUsuarioDto {
   password: string;
   rol: Role;
   carreraId?: number | null;
+  facultadId?: number | null;
 }
 
 export interface UpdatePerfilDto {
@@ -40,6 +41,7 @@ export interface UpdateUsuarioDto {
   rol?: Role;
   estado?: boolean;
   carreraId?: number | null;
+  facultadId?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })

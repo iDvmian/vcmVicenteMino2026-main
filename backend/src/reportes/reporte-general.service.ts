@@ -3,6 +3,7 @@ import { Prisma, Role } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocument = require('pdfkit') as typeof import('pdfkit');
 import { CurrentUser } from '../auth/strategies/jwt.strategy';
+import { facultadDelDecano } from '../common/alcance';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryReporteDto, TipoReporte } from './dto/query-reporte.dto';
 
@@ -179,9 +180,13 @@ export class ReporteGeneralService {
       carreraId = u?.carreraId ?? -1; // sin carrera asignada: no ve nada
     }
 
+    // El Decano solo ve los datos de su propia facultad (se ignora cualquier otra que pida)
+    const facultadDecano = await facultadDelDecano(this.prisma, user);
+    const facultadId = facultadDecano ?? query.facultadId;
+
     const solicitudWhere: Prisma.SolicitudWhereInput = {};
     if (carreraId !== undefined) solicitudWhere.carreraId = carreraId;
-    if (query.facultadId !== undefined) solicitudWhere.carrera = { is: { facultadId: query.facultadId } };
+    if (facultadId !== undefined) solicitudWhere.carrera = { is: { facultadId } };
     if (query.ciudad) solicitudWhere.ciudad = query.ciudad;
 
     const docenteWhere: Prisma.UserWhereInput | undefined = query.docente?.trim()
@@ -403,9 +408,11 @@ export class ReporteGeneralService {
       const c = await this.prisma.carrera.findUnique({ where: { id: carreraId }, select: { nombre: true } });
       f.push(`Carrera: ${c?.nombre ?? carreraId}${user.rol === Role.ENCARGADO_CARRERA ? ' (tu carrera)' : ''}`);
     }
-    if (query.facultadId !== undefined) {
-      const fa = await this.prisma.facultad.findUnique({ where: { id: query.facultadId }, select: { nombre: true } });
-      f.push(`Facultad: ${fa?.nombre ?? query.facultadId}`);
+    const facultadDecano = await facultadDelDecano(this.prisma, user);
+    const facultadId = facultadDecano ?? query.facultadId;
+    if (facultadId !== undefined && facultadId > 0) {
+      const fa = await this.prisma.facultad.findUnique({ where: { id: facultadId }, select: { nombre: true } });
+      f.push(`Facultad: ${fa?.nombre ?? facultadId}${facultadDecano !== null ? ' (tu facultad)' : ''}`);
     }
     if (query.tipoIntervencion) f.push(`Tipo de intervención: ${fmtTipo(query.tipoIntervencion)}`);
     if (query.ciudad) f.push(`Comuna: ${query.ciudad}`);

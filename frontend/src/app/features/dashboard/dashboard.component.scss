@@ -344,3 +344,9 @@
 @media (max-width: 560px) {
   .step__label { font-size: 11px; }
 }
+
+.comparacion__hint { margin: 0 0 0.75rem; color: #6b7280; font-size: 0.85rem; }
+.comparacion__scroll { overflow-x: auto; }
+.rank--click tbody tr { cursor: pointer; }
+.rank--click tbody tr:hover { background: #f3f6fb; }
+.rank--click tbody tr.rank__sel { background: #e3ecfb; font-weight: 600; }

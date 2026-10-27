@@ -80,7 +80,7 @@
           appendTo="body"
         />
       </div>
-      <div class="field" *ngIf="!esEncargado">
+      <div class="field" *ngIf="!esEncargado && !esDecano">
         <label class="field__label">Facultad</label>
         <p-select
           [(ngModel)]="facultadId"

@@ -1,10 +1,13 @@
-<!-- Panel de indicadores: Decano y Admin -->
+<!-- Panel de indicadores: Decano (su facultad), Director de VCM y Admin (todas las facultades) -->
 <div class="panel" *ngIf="showPanel">
   <header class="panel__header">
     <div>
       <h1 class="panel__title">Panel de indicadores</h1>
       <p class="panel__subtitle">
-        Vinculación con el Medio · los datos corresponden a las solicitudes recibidas en el período elegido
+        Vinculación con el Medio ·
+        <ng-container *ngIf="esGlobal">todas las facultades · </ng-container>
+        <ng-container *ngIf="!esGlobal && facultadDecano"><strong>{{ facultadDecano }}</strong> · </ng-container>
+        los datos corresponden a las solicitudes recibidas en el período elegido
       </p>
     </div>
   </header>
@@ -41,6 +44,20 @@
         [style]="{ width: '100%' }"
         (onSelect)="cargar()"
         (onClear)="cargar()"
+      />
+    </div>
+    <div class="filters__field" *ngIf="esGlobal">
+      <label class="filters__label">Facultad</label>
+      <p-select
+        [options]="facultadOptions"
+        [(ngModel)]="facultadId"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Todas las facultades"
+        [showClear]="true"
+        appendTo="body"
+        [style]="{ width: '100%' }"
+        (onChange)="onFacultadChange()"
       />
     </div>
     <div class="filters__field">
@@ -147,6 +164,35 @@
           <span class="kpi__label">Tiempo de respuesta</span>
           <span class="kpi__value">{{ fmt(d.resumen.tiempoRespuestaPromedioDias, ' días') }}</span>
           <span class="kpi__note">Promedio hasta aprobar o rechazar una solicitud (aproximado)</span>
+        </article>
+      </section>
+
+      <!-- Comparación entre facultades (Director y Admin): de lo general a lo específico -->
+      <section class="charts" *ngIf="esGlobal && d.porFacultad.length">
+        <article class="chart-card chart-card--wide">
+          <h2 class="chart-card__title">Comparación entre facultades</h2>
+          <div class="chart-card__body"><p-chart type="bar" [data]="chartFacultad" [options]="optsBarra" /></div>
+        </article>
+        <article class="table-card chart-card--wide">
+          <h2 class="chart-card__title">Detalle por facultad</h2>
+          <p class="comparacion__hint">Haz clic en una facultad para ver sus carreras, docentes y proyectos; vuelve a hacer clic para ver todas.</p>
+          <div class="comparacion__scroll">
+            <table class="rank rank--click">
+              <thead>
+                <tr>
+                  <th>Facultad</th><th>Solicitudes</th><th>Aprobadas</th><th>Proyectos</th><th>Finalizados</th>
+                  <th>Conversión</th><th>Horas hombre</th><th>Personas</th><th>Alumnos vol.</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let f of d.porFacultad" [class.rank__sel]="f.facultadId === facultadId" (click)="seleccionarFacultad(f.facultadId)">
+                  <td>{{ f.facultad }}</td><td>{{ f.solicitudes }}</td><td>{{ f.aprobadas }}</td>
+                  <td>{{ f.proyectos }}</td><td>{{ f.finalizados }}</td><td>{{ f.tasaConversion }}%</td>
+                  <td>{{ fmt(f.horasHombre) }}</td><td>{{ fmt(f.participantes) }}</td><td>{{ f.alumnosVoluntarios }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </article>
       </section>
 

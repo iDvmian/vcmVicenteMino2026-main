@@ -76,6 +76,7 @@ export class SolicitudesController {
     Role.ENCARGADO_CARRERA,
     Role.DOCENTE,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Listar todas las solicitudes (filtrado automático por rol)' })
   @ApiOkResponse({ description: 'Lista de solicitudes obtenida exitosamente' })

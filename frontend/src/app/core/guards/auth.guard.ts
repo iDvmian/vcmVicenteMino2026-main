@@ -48,3 +48,18 @@ export const soloGestionGuard: CanActivateFn = () => {
   }
   return true;
 };
+
+/** Permite la ruta solo a los roles indicados; el resto vuelve al dashboard (el backend igual valida los permisos). */
+export const soloRolesGuard = (...roles: string[]): CanActivateFn => () => {
+  const router = inject(Router);
+  try {
+    const user = JSON.parse(localStorage.getItem('vcm_user') ?? 'null');
+    if (user?.rol && !roles.includes(user.rol)) {
+      router.navigate(['/dashboard']);
+      return false;
+    }
+  } catch {
+    // si el dato guardado está dañado, se deja pasar: el backend igual valida los permisos
+  }
+  return true;
+};

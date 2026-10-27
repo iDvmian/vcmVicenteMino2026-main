@@ -15,6 +15,7 @@ const ROL_LABEL: Record<Role, string> = {
   ENCARGADO_CARRERA: 'Encargado de carrera',
   DOCENTE: 'Docente',
   DECANO: 'Decano',
+  DIRECTOR_VCM: 'Director de Vinculación con el Medio',
   CLIENTE: 'Cliente',
 };
 

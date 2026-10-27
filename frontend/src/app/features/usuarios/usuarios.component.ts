@@ -14,6 +14,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { UsuariosService, CreateUsuarioDto, UpdateUsuarioDto } from '../../core/services/usuarios.service';
 import { CarrerasService } from '../../core/services/carreras.service';
+import { FacultadesService } from '../../core/services/facultades.service';
 import { AuthService } from '../../core/services/auth.service';
 import { User, Role } from '../../core/models/user.model';
 import { Carrera } from '../../core/models/carrera.model';
@@ -54,6 +55,7 @@ export class UsuariosComponent implements OnInit {
   selectedRol: Role | null = null;
   selectedEstado: boolean | null = null;
   carrerasDropdown: CarreraOption[] = [];
+  facultadesDropdown: { id: number; label: string }[] = [];
 
   readonly rolOptions: { label: string; value: Role }[] = [
     { label: 'ADMIN', value: 'ADMIN' },
@@ -61,6 +63,7 @@ export class UsuariosComponent implements OnInit {
     { label: 'ENCARGADO CARRERA', value: 'ENCARGADO_CARRERA' },
     { label: 'DOCENTE', value: 'DOCENTE' },
     { label: 'DECANO', value: 'DECANO' },
+    { label: 'DIRECTOR VCM', value: 'DIRECTOR_VCM' },
     { label: 'CLIENTE', value: 'CLIENTE' },
   ];
 
@@ -79,6 +82,7 @@ export class UsuariosComponent implements OnInit {
   constructor(
     private service: UsuariosService,
     private carrerasService: CarrerasService,
+    private facultadesService: FacultadesService,
     private authService: AuthService,
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
@@ -96,6 +100,15 @@ export class UsuariosComponent implements OnInit {
       rol: [null, Validators.required],
       estado: [true],
       carreraId: [null],
+      facultadId: [null],
+    });
+
+    // El Decano debe tener una facultad: solo verá la información de esa facultad
+    this.form.get('rol')!.valueChanges.subscribe((rol) => {
+      const fac = this.form.get('facultadId')!;
+      fac.setValidators(rol === 'DECANO' ? [Validators.required] : []);
+      if (rol !== 'DECANO') fac.setValue(null, { emitEvent: false });
+      fac.updateValueAndValidity({ emitEvent: false });
     });
   }
 
@@ -114,6 +127,13 @@ export class UsuariosComponent implements OnInit {
       return;
     }
     this.loadCarrerasDropdown();
+    this.facultadesService.getFacultades({ limit: 100 }).subscribe({
+      next: (res) => {
+        this.facultadesDropdown = res.items.map((f) => ({ id: f.id, label: f.nombre }));
+        this.cdr.detectChanges();
+      },
+      error: () => {},
+    });
     this.loadItems();
   }
 
@@ -178,6 +198,7 @@ export class UsuariosComponent implements OnInit {
       ENCARGADO_CARRERA: 'var(--ucm-warning)',
       DOCENTE: 'var(--ucm-success)',
       DECANO: 'var(--ucm-azul)',
+      DIRECTOR_VCM: 'var(--ucm-teal)',
       CLIENTE: 'var(--ucm-neutral)',
     };
     return { background: colors[rol] ?? 'var(--ucm-neutral)', color: '#fff' };
@@ -202,6 +223,7 @@ export class UsuariosComponent implements OnInit {
       rol: item.rol,
       estado: item.estado,
       carreraId: item.carreraId ?? null,
+      facultadId: item.facultadId ?? null,
     });
     this.form.get('password')!.clearValidators();
     this.form.get('password')!.setValue('');
@@ -226,6 +248,7 @@ export class UsuariosComponent implements OnInit {
         rol: raw.rol,
         estado: raw.estado,
         carreraId: raw.carreraId || null,
+        facultadId: raw.rol === 'DECANO' ? raw.facultadId : null,
       };
       this.service.actualizarUsuario(this.editingItem.id, dto).subscribe({
         next: () => this.onSaveSuccess('Usuario actualizado'),
@@ -241,6 +264,7 @@ export class UsuariosComponent implements OnInit {
         password: raw.password,
         rol: raw.rol,
         carreraId: raw.carreraId || null,
+        facultadId: raw.rol === 'DECANO' ? raw.facultadId : null,
       };
       if (raw.telefono) dto.telefono = raw.telefono;
       this.service.crearUsuario(dto).subscribe({

@@ -14,6 +14,12 @@ export class QueryDashboardDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'fechaHasta debe tener formato AAAA-MM-DD' })
   fechaHasta?: string;
 
+  @ApiPropertyOptional({ example: 1, description: 'Filtrar por ID de facultad (el Decano siempre queda limitado a la suya)' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  facultadId?: number;
+
   @ApiPropertyOptional({ example: 1, description: 'Filtrar por ID de carrera' })
   @IsOptional()
   @IsInt()

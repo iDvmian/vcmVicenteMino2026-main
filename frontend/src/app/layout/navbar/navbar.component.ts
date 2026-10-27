@@ -18,22 +18,24 @@ export class NavbarComponent {
     return this.authService.getCurrentUser();
   }
 
-  /** Decano y Admin ven el panel de indicadores; el resto, su pantalla de inicio. */
+  /** Decano, Director de VCM y Admin ven el panel de indicadores; el resto, su pantalla de inicio. */
   get inicioLabel(): string {
     const rol = this.currentUser?.rol;
-    return rol === 'DECANO' || rol === 'ADMIN' ? 'Panel de indicadores' : 'Inicio';
+    return rol === 'DECANO' || rol === 'DIRECTOR_VCM' || rol === 'ADMIN' ? 'Panel de indicadores' : 'Inicio';
   }
 
-  // Facultades, Carreras y Usuarios son de configuración: no se muestran al solicitante
-  // (CLIENTE), al encargado de carrera ni al docente.
-  get showFacultadesCarreras(): boolean {
-    const rol = this.authService.getCurrentUser()?.rol;
-    return !!rol && rol !== 'CLIENTE' && rol !== 'ENCARGADO_CARRERA' && rol !== 'DOCENTE';
+  // Facultades es de configuración: solo para quienes ven toda la estructura.
+  // Carreras y Usuarios también las ve el Decano, pero solo las de su facultad.
+  get showFacultades(): boolean {
+    return ['ADMIN', 'GESTOR_VCM', 'DIRECTOR_VCM'].includes(this.authService.getCurrentUser()?.rol ?? '');
+  }
+
+  get showCarreras(): boolean {
+    return ['ADMIN', 'GESTOR_VCM', 'DIRECTOR_VCM', 'DECANO'].includes(this.authService.getCurrentUser()?.rol ?? '');
   }
 
   get showUsuarios(): boolean {
-    const rol = this.authService.getCurrentUser()?.rol;
-    return !!rol && rol !== 'CLIENTE' && rol !== 'ENCARGADO_CARRERA' && rol !== 'DOCENTE';
+    return ['ADMIN', 'GESTOR_VCM', 'DIRECTOR_VCM', 'DECANO'].includes(this.authService.getCurrentUser()?.rol ?? '');
   }
 
   get showAlumnosVoluntarios(): boolean {
@@ -60,7 +62,7 @@ export class NavbarComponent {
   // a los de los demás links, por eso no se reutiliza showUsuarios.
   get showReportes(): boolean {
     const rol = this.authService.getCurrentUser()?.rol;
-    return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DECANO'].includes(rol ?? '');
+    return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DECANO', 'DIRECTOR_VCM'].includes(rol ?? '');
   }
 
   logout(): void {

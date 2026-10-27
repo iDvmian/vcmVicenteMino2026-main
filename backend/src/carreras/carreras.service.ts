@@ -1,9 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { CurrentUser } from '../auth/strategies/jwt.strategy';
+import { facultadDelDecano } from '../common/alcance';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { QueryCarrerasDto } from './dto/query-carreras.dto';
@@ -13,12 +16,17 @@ import { UpdateCarreraDto } from './dto/update-carrera.dto';
 export class CarrerasService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: QueryCarrerasDto) {
+  async findAll(query: QueryCarrerasDto, actor?: CurrentUser) {
     const { facultadId, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
+    // El Decano solo ve las carreras de su facultad
+    const facultadDecano = actor ? await facultadDelDecano(this.prisma, actor) : null;
+
     const where = {
-      ...(facultadId !== undefined && { facultadId }),
+      ...(facultadDecano !== null
+        ? { facultadId: facultadDecano }
+        : facultadId !== undefined && { facultadId }),
     };
 
     const [items, total] = await Promise.all([
@@ -39,13 +47,18 @@ export class CarrerasService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, actor?: CurrentUser) {
     const carrera = await this.prisma.carrera.findUnique({
       where: { id },
       include: { facultad: true },
     });
 
     if (!carrera) throw new NotFoundException(`Carrera con id ${id} no encontrada`);
+
+    const facultadDecano = actor ? await facultadDelDecano(this.prisma, actor) : null;
+    if (facultadDecano !== null && carrera.facultadId !== facultadDecano) {
+      throw new ForbiddenException('Esta carrera no pertenece a tu facultad');
+    }
 
     return { data: carrera, message: 'Carrera obtenida exitosamente', statusCode: 200 };
   }

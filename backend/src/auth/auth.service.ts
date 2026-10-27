@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -40,8 +40,8 @@ export class AuthService {
         email: dto.email,
         telefono: dto.telefono,
         password: hashedPassword,
-        rol: dto.rol,
-        carreraId: dto.carreraId,
+        // El registro público siempre crea solicitantes: los roles internos los asigna un administrador
+        rol: Role.CLIENTE,
       },
     });
 

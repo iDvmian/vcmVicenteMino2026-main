@@ -217,6 +217,25 @@
         <p-toggleswitch formControlName="estado" />
       </div>
 
+      <!-- Facultad (solo Decano) -->
+      <div class="field field--full" *ngIf="form.get('rol')?.value === 'DECANO'">
+        <label class="field__label">Facultad del Decano <span class="required">*</span></label>
+        <p-select
+          formControlName="facultadId"
+          [options]="facultadesDropdown"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Seleccione la facultad"
+          [style]="{ width: '100%' }"
+          [scrollHeight]="'250px'"
+          appendTo="body"
+        />
+        <small class="field__hint">El Decano solo verá la información de esta facultad.</small>
+        <small class="field__error" *ngIf="form.get('facultadId')?.invalid && form.get('facultadId')?.touched">
+          Selecciona la facultad del Decano
+        </small>
+      </div>
+
       <!-- Carrera -->
       <div class="field field--full">
         <label class="field__label">Carrera</label>

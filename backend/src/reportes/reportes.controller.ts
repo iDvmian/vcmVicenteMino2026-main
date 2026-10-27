@@ -28,21 +28,21 @@ export class ReportesController {
   ) {}
 
   @Get('catalogo')
-  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DECANO)
+  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DECANO, Role.DIRECTOR_VCM)
   @ApiOperation({ summary: 'Columnas y estados disponibles para cada tipo de reporte' })
   catalogo() {
     return this.reporteGeneral.catalogo();
   }
 
   @Get('datos')
-  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DECANO)
+  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DECANO, Role.DIRECTOR_VCM)
   @ApiOperation({ summary: 'Vista previa de un reporte de solicitudes, planteamientos o proyectos' })
   datos(@Query() query: QueryReporteDto, @Request() req: { user: CurrentUser }) {
     return this.reporteGeneral.datos(query, req.user);
   }
 
   @Get('pdf')
-  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DECANO)
+  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.ENCARGADO_CARRERA, Role.DECANO, Role.DIRECTOR_VCM)
   @ApiOperation({ summary: 'Descargar en PDF un reporte de solicitudes, planteamientos o proyectos' })
   @ApiProduces('application/pdf')
   async pdf(
@@ -58,13 +58,13 @@ export class ReportesController {
   }
 
   @Get('dashboard')
-  @Roles(Role.DECANO, Role.ADMIN)
+  @Roles(Role.DECANO, Role.DIRECTOR_VCM, Role.ADMIN)
   @ApiOperation({
-    summary: 'Indicadores y estadísticas del panel del Decano (filtrable por fechas, carrera y tipo de intervención)',
+    summary: 'Indicadores del panel de Decano (su facultad), Director de VCM y Admin (todas las facultades, con comparación)',
   })
   @ApiResponse({ status: 200, description: 'Indicadores calculados' })
-  getDashboard(@Query() query: QueryDashboardDto) {
-    return this.dashboardService.getDashboard(query);
+  getDashboard(@Query() query: QueryDashboardDto, @Request() req: { user: CurrentUser }) {
+    return this.dashboardService.getDashboard(query, req.user);
   }
 
   @Get('proyectos')
@@ -73,6 +73,7 @@ export class ReportesController {
     Role.GESTOR_VCM,
     Role.ENCARGADO_CARRERA,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({
     summary: 'Generar reporte PDF de proyectos, filtrable por estado y carrera (RF-40)',

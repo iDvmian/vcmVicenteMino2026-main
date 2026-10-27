@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { CurrentUser } from '../auth/strategies/jwt.strategy';
+import { facultadDelDecano } from '../common/alcance';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryDashboardDto } from './dto/query-dashboard.dto';
 
@@ -18,7 +20,7 @@ export class DashboardService {
    * (y carrera / tipo de intervención elegidos): sus planteamientos, proyectos,
    * docentes y alumnos se cuentan a partir de ahí, así el panel es coherente.
    */
-  async getDashboard(query: QueryDashboardDto) {
+  async getDashboard(query: QueryDashboardDto, user: CurrentUser) {
     const where: Prisma.SolicitudWhereInput = {};
 
     if (query.fechaDesde || query.fechaHasta) {
@@ -27,15 +29,27 @@ export class DashboardService {
       if (query.fechaHasta) createdAt.lte = new Date(`${query.fechaHasta}T23:59:59.999`);
       where.createdAt = createdAt;
     }
-    if (query.carreraId !== undefined) where.carreraId = query.carreraId;
+    // El Decano queda limitado a su facultad. Admin y Director ven todas; la facultad y la carrera
+    // se filtran después en memoria para poder comparar todas las facultades entre sí.
+    const facultadDecano = await facultadDelDecano(this.prisma, user);
+    if (facultadDecano !== null) where.carrera = { is: { facultadId: facultadDecano } };
+    const facultadSel = facultadDecano ?? query.facultadId;
     if (query.tipoIntervencion) {
       where.planteamiento = { is: { tipoIntervencion: query.tipoIntervencion } };
     }
 
-    const solicitudes = await this.prisma.solicitud.findMany({
+    const todas = await this.prisma.solicitud.findMany({
       where,
       include: {
-        carrera: { select: { id: true, nombre: true, etiqueta: true } },
+        carrera: {
+          select: {
+            id: true,
+            nombre: true,
+            etiqueta: true,
+            facultadId: true,
+            facultad: { select: { id: true, nombre: true, etiqueta: true } },
+          },
+        },
         planteamiento: {
           include: {
             docente: { select: { id: true, nombres: true, apellidos: true } },
@@ -53,6 +67,50 @@ export class DashboardService {
       },
       orderBy: { createdAt: 'asc' },
     });
+
+    const solicitudes = todas.filter(
+      (s) =>
+        (facultadSel === undefined || s.carrera?.facultadId === facultadSel) &&
+        (query.carreraId === undefined || s.carreraId === query.carreraId),
+    );
+
+    // ── Comparación entre facultades (sobre todas las visibles, sin filtrar por facultad/carrera) ──
+    const facultades = new Map<number, {
+      facultadId: number; facultad: string; etiqueta: string;
+      solicitudes: number; aprobadas: number; rechazadas: number; pendientes: number;
+      planteamientos: number; proyectos: number; finalizados: number;
+      horasHombre: number; participantes: number; alumnos: Set<number>;
+    }>();
+    for (const s of todas) {
+      if (!s.carrera) continue;
+      const fid = s.carrera.facultadId;
+      const f = facultades.get(fid) ?? {
+        facultadId: fid, facultad: s.carrera.facultad.nombre, etiqueta: s.carrera.facultad.etiqueta,
+        solicitudes: 0, aprobadas: 0, rechazadas: 0, pendientes: 0,
+        planteamientos: 0, proyectos: 0, finalizados: 0, horasHombre: 0, participantes: 0, alumnos: new Set<number>(),
+      };
+      f.solicitudes++;
+      if (s.estado === 'APROBADA') f.aprobadas++;
+      else if (s.estado === 'RECHAZADA') f.rechazadas++;
+      else f.pendientes++;
+      const pl = s.planteamiento;
+      if (pl) {
+        f.planteamientos++;
+        const pr = pl.proyecto;
+        if (pr) {
+          f.proyectos++;
+          if (pr.estado === 'FINALIZADO') f.finalizados++;
+          f.horasHombre += pl.horasHombre ?? 0;
+          f.participantes += (pr.participantesDocentes ?? 0) + (pr.participantesEstudiantes ?? 0) +
+            (pr.participantesDocentesExternos ?? 0) + (pr.participantesAlumnosExternos ?? 0) + (pr.participantesOtrosExternos ?? 0);
+          for (const a of pr.alumnos) f.alumnos.add(a.alumnoId);
+        }
+      }
+      facultades.set(fid, f);
+    }
+    const porFacultad = [...facultades.values()]
+      .map(({ alumnos, ...f }) => ({ ...f, alumnosVoluntarios: alumnos.size, tasaConversion: pct(f.proyectos, f.solicitudes) }))
+      .sort((a, b) => b.solicitudes - a.solicitudes);
 
     // ── Solicitudes ──────────────────────────────────────────────────────────
     const solPorEstado = { PENDIENTE: 0, APROBADA: 0, RECHAZADA: 0 };
@@ -214,6 +272,7 @@ export class DashboardService {
         tiempoRespuestaPromedioDias: respondidas ? round1(sumaRespuestaMs / respondidas / DIA_MS) : null,
       },
       porMes,
+      porFacultad,
       porTipoIntervencion,
       porCarrera,
       porComuna,

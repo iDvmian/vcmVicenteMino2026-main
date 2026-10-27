@@ -82,12 +82,17 @@ export class ReportesComponent implements OnInit {
   }
 
   get canVerReportes(): boolean {
-    return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DECANO'].includes(this.rol);
+    return ['ADMIN', 'GESTOR_VCM', 'ENCARGADO_CARRERA', 'DECANO', 'DIRECTOR_VCM'].includes(this.rol);
   }
 
   /** El Encargado de carrera solo ve su carrera: no necesita filtrar por carrera ni facultad. */
   get esEncargado(): boolean {
     return this.rol === 'ENCARGADO_CARRERA';
+  }
+
+  /** El Decano ya está limitado a su facultad: no necesita elegirla. */
+  get esDecano(): boolean {
+    return this.rol === 'DECANO';
   }
 
   get catalogoActual(): CatalogoReporte | undefined {
@@ -134,13 +139,15 @@ export class ReportesComponent implements OnInit {
         },
         error: () => {},
       });
-      this.facultadesService.getFacultades({ limit: 100 }).subscribe({
-        next: (res) => {
-          this.facultadOptions = res.items.map((f) => ({ label: f.nombre, value: f.id }));
-          this.cdr.detectChanges();
-        },
-        error: () => {},
-      });
+      if (!this.esDecano) {
+        this.facultadesService.getFacultades({ limit: 100 }).subscribe({
+          next: (res) => {
+            this.facultadOptions = res.items.map((f) => ({ label: f.nombre, value: f.id }));
+            this.cdr.detectChanges();
+          },
+          error: () => {},
+        });
+      }
     }
   }
 

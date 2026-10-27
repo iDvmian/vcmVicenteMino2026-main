@@ -50,6 +50,7 @@ export class PlanteamientosController {
     Role.GESTOR_VCM,
     Role.ENCARGADO_CARRERA,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Obtener mis planteamientos (como docente)' })
   @ApiOkResponse({ description: 'Lista de planteamientos propios obtenida exitosamente' })
@@ -75,6 +76,7 @@ export class PlanteamientosController {
     Role.GESTOR_VCM,
     Role.ENCARGADO_CARRERA,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Listar todos los planteamientos (filtrado automático por rol)' })
   @ApiOkResponse({ description: 'Lista de planteamientos obtenida exitosamente' })
@@ -92,6 +94,7 @@ export class PlanteamientosController {
     Role.ENCARGADO_CARRERA,
     Role.DOCENTE,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Obtener un planteamiento por ID' })
   @ApiOkResponse({ description: 'Planteamiento encontrado' })

@@ -63,6 +63,7 @@ export class ProyectosController {
     Role.ENCARGADO_CARRERA,
     Role.DOCENTE,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Obtener mis proyectos (como docente)' })
   @ApiOkResponse({ description: 'Lista de proyectos propios obtenida exitosamente' })
@@ -80,6 +81,7 @@ export class ProyectosController {
     Role.ENCARGADO_CARRERA,
     Role.DOCENTE,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Listar proyectos (filtrado automático por rol)' })
   @ApiOkResponse({ description: 'Lista de proyectos obtenida exitosamente' })
@@ -97,6 +99,7 @@ export class ProyectosController {
     Role.ENCARGADO_CARRERA,
     Role.DOCENTE,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Obtener un proyecto por ID' })
   @ApiOkResponse({ description: 'Proyecto encontrado' })
@@ -244,6 +247,7 @@ export class ProyectosController {
     Role.ENCARGADO_CARRERA,
     Role.DOCENTE,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Listar observaciones del proyecto' })
   @ApiOkResponse({ description: 'Observaciones obtenidas exitosamente' })

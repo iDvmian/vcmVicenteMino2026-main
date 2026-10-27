@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, noAuthGuard, noClienteGuard, soloGestionGuard } from './core/guards/auth.guard';
+import { authGuard, noAuthGuard, noClienteGuard, soloRolesGuard } from './core/guards/auth.guard';
 import { LoginComponent } from './features/auth/login/login.component';
 import { RegisterComponent } from './features/auth/register/register.component';
 import { ForgotPasswordComponent } from './features/auth/forgot-password/forgot-password.component';
@@ -28,19 +28,19 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard/facultades',
-        canActivate: [soloGestionGuard],
+        canActivate: [soloRolesGuard('ADMIN', 'GESTOR_VCM', 'DIRECTOR_VCM')],
         loadComponent: () =>
           import('./features/facultades/facultades.component').then(m => m.FacultadesComponent),
       },
       {
         path: 'dashboard/carreras',
-        canActivate: [soloGestionGuard],
+        canActivate: [soloRolesGuard('ADMIN', 'GESTOR_VCM', 'DIRECTOR_VCM', 'DECANO')],
         loadComponent: () =>
           import('./features/carreras/carreras.component').then(m => m.CarrerasComponent),
       },
       {
         path: 'dashboard/usuarios',
-        canActivate: [soloGestionGuard],
+        canActivate: [soloRolesGuard('ADMIN', 'GESTOR_VCM', 'DIRECTOR_VCM', 'DECANO')],
         loadComponent: () =>
           import('./features/usuarios/usuarios.component').then(m => m.UsuariosComponent),
       },

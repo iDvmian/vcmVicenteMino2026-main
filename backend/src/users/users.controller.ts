@@ -45,11 +45,12 @@ export class UsersController {
     Role.ADMIN,
     Role.GESTOR_VCM,
     Role.DECANO,
+    Role.DIRECTOR_VCM,
   )
   @ApiOperation({ summary: 'Listar todos los usuarios (paginado, con filtros opcionales)' })
   @ApiOkResponse({ description: 'Lista de usuarios obtenida exitosamente' })
-  findAll(@Query() query: QueryUsersDto) {
-    return this.usersService.findAll(query);
+  findAll(@Query() query: QueryUsersDto, @Req() req: RequestWithUser) {
+    return this.usersService.findAll(query, req.user);
   }
 
   // IMPORTANTE: las rutas 'me' van antes que ':id' para que no se interpreten como un id.
@@ -69,11 +70,12 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.GESTOR_VCM, Role.DECANO, Role.DIRECTOR_VCM)
   @ApiOperation({ summary: 'Obtener un usuario por ID' })
   @ApiOkResponse({ description: 'Usuario encontrado' })
   @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.findOne(id);
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: RequestWithUser) {
+    return this.usersService.findOne(id, req.user);
   }
 
   @Post()

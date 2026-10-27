@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { EstadoSolicitud, EtapaSeguimiento, OrigenSolicitud, Role } from '@prisma/client';
 import { registrarEtapa } from '../common/seguimiento';
+import { facultadDelDecano } from '../common/alcance';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -81,6 +82,10 @@ export class SolicitudesService {
     } else {
       if (query.carreraId !== undefined) where.carreraId = query.carreraId;
     }
+
+    // El Decano solo ve las solicitudes de las carreras de su facultad
+    const facultadDecano = await facultadDelDecano(this.prisma, currentUser);
+    if (facultadDecano !== null) where.carrera = { is: { facultadId: facultadDecano } };
 
     const [items, total] = await Promise.all([
       this.prisma.solicitud.findMany({
@@ -224,6 +229,11 @@ export class SolicitudesService {
 
     if (currentUser.rol === Role.CLIENTE && solicitud.clienteId !== currentUser.id) {
       throw new ForbiddenException('No tienes permiso para ver esta solicitud');
+    }
+
+    const facultadDecano = await facultadDelDecano(this.prisma, currentUser);
+    if (facultadDecano !== null && solicitud.carrera?.facultadId !== facultadDecano) {
+      throw new ForbiddenException('Esta solicitud no pertenece a tu facultad');
     }
 
     return { data: solicitud, message: 'Solicitud obtenida exitosamente', statusCode: 200 };
