@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -52,7 +52,7 @@ interface ActiveFilter {
   templateUrl: './solicitudes.component.html',
   styleUrl: './solicitudes.component.scss',
 })
-export class SolicitudesComponent implements OnInit {
+export class SolicitudesComponent implements OnInit, OnDestroy {
   items: Solicitud[] = [];
   totalRecords = 0;
   loading = false;
@@ -283,7 +283,69 @@ export class SolicitudesComponent implements OnInit {
     return this.canEdit(s);
   }
 
+  // ── Aviso de "editando" ───────────────────────────────────
+  private latidoTimer: ReturnType<typeof setInterval> | null = null;
+  private refrescoTimer: ReturnType<typeof setInterval> | null = null;
+  /** Solicitud cuya edición está marcada por este usuario (para liberarla al cerrar). */
+  private editandoId: number | null = null;
+
+  /** ¿El solicitante tiene esta solicitud abierta en edición ahora mismo? */
+  estaEditando(s: Solicitud | null | undefined): boolean {
+    return !!s?.editandoHasta && new Date(s.editandoHasta).getTime() > Date.now();
+  }
+
+  /** El solicitante que edita su propia solicitud pendiente avisa cada 30 s para que no se evalúe a mitad de cambios. */
+  private iniciarAvisoEdicion(item: Solicitud): void {
+    this.detenerAvisoEdicion();
+    if (item.estado !== 'PENDIENTE' || item.clienteId !== this.currentUser?.id) return;
+    this.editandoId = item.id;
+    const avisar = () => this.service.marcarEditando(item.id).subscribe({ error: () => {} });
+    avisar();
+    this.latidoTimer = setInterval(avisar, 30000);
+  }
+
+  private detenerAvisoEdicion(): void {
+    if (this.latidoTimer) { clearInterval(this.latidoTimer); this.latidoTimer = null; }
+    if (this.editandoId !== null) {
+      const id = this.editandoId;
+      this.editandoId = null;
+      this.service.liberarEditando(id).subscribe({ error: () => {} });
+    }
+  }
+
+  /** Cierre del formulario: termina la evaluación abierta y libera el aviso de edición. */
+  onDialogHide(): void {
+    this.evaluando = false;
+    this.detenerAvisoEdicion();
+  }
+
+  /** Quien evalúa ve en vivo si el solicitante empezó o terminó de editar. */
+  private refrescar(): void {
+    if (this.evaluando && this.gestionarItem) {
+      const id = this.gestionarItem.id;
+      this.service.getById(id).subscribe({
+        next: (actual) => {
+          if (this.gestionarItem?.id === id) {
+            this.gestionarItem = actual;
+            this.cdr.detectChanges();
+          }
+        },
+        error: () => {},
+      });
+    } else if (!this.dialogVisible) {
+      this.loadItems(true);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.detenerAvisoEdicion();
+    if (this.refrescoTimer) clearInterval(this.refrescoTimer);
+  }
+
   ngOnInit(): void {
+    if (this.canGestionar) {
+      this.refrescoTimer = setInterval(() => this.refrescar(), 30000);
+    }
     this.loadCarrerasDropdown();
     this.loadItems();
     if (this.canCreateSolicitud) {
@@ -333,8 +395,8 @@ export class SolicitudesComponent implements OnInit {
     });
   }
 
-  loadItems(): void {
-    this.loading = true;
+  loadItems(silent = false): void {
+    if (!silent) this.loading = true;
     const params: Record<string, any> = { page: this.currentPage, limit: this.rows };
     if (this.selectedEstado !== null) params['estado'] = this.selectedEstado;
     if (this.selectedCarreraId !== null) params['carreraId'] = this.selectedCarreraId;
@@ -359,7 +421,7 @@ export class SolicitudesComponent implements OnInit {
       error: () => {
         this.loading = false;
         this.cdr.detectChanges();
-        this.showError('Error al cargar las solicitudes');
+        if (!silent) this.showError('Error al cargar las solicitudes');
       },
     });
   }
@@ -490,6 +552,7 @@ export class SolicitudesComponent implements OnInit {
     }
     this.aplicarValidacionIniciativa();
     this.dialogVisible = true;
+    if (!readonly) this.iniciarAvisoEdicion(item);
   }
 
   save(): void {
@@ -651,6 +714,29 @@ export class SolicitudesComponent implements OnInit {
     this.gestionarItem = item;
     this.gestionarForm.reset({ estado: null, facultadId: null, carreraId: null, motivoRechazo: '' });
     this.evaluando = true;
+
+    // Se vuelve a leer la solicitud: el listado puede estar desactualizado (p. ej. el solicitante la está editando)
+    this.service.getById(item.id).subscribe({
+      next: (actual) => {
+        if (this.gestionarItem?.id !== actual.id) return;
+        this.gestionarItem = actual;
+        this.editingItem = actual;
+        this.form.patchValue({
+          titulo: actual.titulo,
+          descripcion: actual.descripcion,
+          ciudad: actual.ciudad ?? null,
+          direccion: actual.direccion ?? '',
+          numeroDireccion: actual.numeroDireccion ?? '',
+          telefono: actual.telefono ?? '',
+          tipoCliente: actual.tipoCliente ?? null,
+          tipoClienteOtro: actual.tipoClienteOtro ?? '',
+          nombreOrganizacion: actual.nombreOrganizacion ?? '',
+          personasPrevistas: actual.personasPrevistas ?? null,
+        });
+        this.cdr.detectChanges();
+      },
+      error: () => {},
+    });
   }
 
   saveGestionar(): void {

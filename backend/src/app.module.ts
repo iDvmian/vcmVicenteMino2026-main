@@ -13,6 +13,7 @@ import { ProyectosModule } from './proyectos/proyectos.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { SolicitudesModule } from './solicitudes/solicitudes.module';
 import { MailModule } from './mail/mail.module';
+import { RetencionModule } from './retencion/retencion.module';
 import { StorageModule } from './storage/storage.module';
 import { UsersModule } from './users/users.module';
 
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
     PlanteamientosModule,
     ProyectosModule,
     ReportesModule,
+    RetencionModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

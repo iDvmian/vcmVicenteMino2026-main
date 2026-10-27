@@ -175,7 +175,7 @@
 
       <ng-template pTemplate="body" let-sol>
         <tr>
-          <td class="col-titulo" [title]="sol.titulo">{{ sol.titulo }}<span *ngIf="sol.origen === 'DOCENTE'" class="tag-iniciativa">Iniciativa docente</span></td>
+          <td class="col-titulo" [title]="sol.titulo">{{ sol.titulo }}<span *ngIf="sol.origen === 'DOCENTE'" class="tag-iniciativa">Iniciativa docente</span><span *ngIf="canGestionar && sol.estado === 'PENDIENTE' && estaEditando(sol)" class="tag-editando"><i class="ti ti-pencil"></i> El solicitante la está editando</span></td>
           <td class="col-estado">
             <p-tag [value]="sol.estado" [style]="getEstadoStyle(sol.estado)" />
           </td>
@@ -260,7 +260,7 @@
   [resizable]="false"
   [style]="{ width: '800px', maxWidth: '95vw' }"
   [header]="evaluando ? 'Evaluar solicitud' : reenviando ? 'Corregir y reenviar solicitud' : (viewOnly ? 'Ver solicitud' : (editingItem ? 'Editar solicitud' : (esDocente ? 'Nueva iniciativa docente' : 'Nueva solicitud')))"
-  (onHide)="evaluando = false"
+  (onHide)="onDialogHide()"
 >
   <form [formGroup]="form">
     <div class="form-grid">
@@ -490,6 +490,11 @@
       <div class="field field--full eval" *ngIf="evaluando" [formGroup]="gestionarForm">
         <h3 class="eval__title">Evaluación</h3>
 
+        <div class="aviso-editando" *ngIf="estaEditando(gestionarItem)">
+          <i class="ti ti-alert-triangle"></i>
+          <span>El solicitante está editando esta solicitud ahora mismo. Espera a que termine para evaluarla; este aviso se actualiza solo.</span>
+        </div>
+
         <div class="field">
           <label class="field__label">Nuevo estado <span class="required">*</span></label>
           <p-select
@@ -617,7 +622,7 @@
         class="btn-save"
         type="button"
         (click)="saveGestionar()"
-        [disabled]="gestionarSaving"
+        [disabled]="gestionarSaving || estaEditando(gestionarItem)"
       >
         <i class="ti ti-check"></i>
         {{ gestionarSaving ? 'Guardando…' : 'Confirmar evaluación' }}

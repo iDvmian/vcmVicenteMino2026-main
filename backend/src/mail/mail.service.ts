@@ -231,4 +231,74 @@ export class MailService {
       console.error('[MailService] Error al enviar correo de avance de iniciativa:', error);
     }
   }
+
+  /**
+   * Aviso a los administradores de las iniciativas que serán eliminadas por cumplir el plazo de retención.
+   * Devuelve true si el correo se envió, para que quien lo llama no marque como avisadas las que no lo fueron.
+   */
+  async sendAvisoDepuracion(params: {
+    to: string[];
+    anios: number;
+    eliminarDesde: string;
+    items: { titulo: string; fechaCierre: string }[];
+  }): Promise<boolean> {
+    const { to, anios, eliminarDesde, items } = params;
+    if (to.length === 0 || items.length === 0) return false;
+
+    const escapar = (t: string) =>
+      t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const filas = items
+      .map(
+        (i) =>
+          `<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#1F2937;font-size:14px;">${escapar(i.titulo)}</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#6B7280;font-size:14px;white-space:nowrap;">${escapar(i.fechaCierre)}</td></tr>`,
+      )
+      .join('');
+
+    const subject = `Depuración de iniciativas antiguas: ${items.length} serán eliminadas - VCM FCI-UCM`;
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#F4F6F8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F4F6F8;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background-color:#1B3D8C;padding:24px 32px;">
+              <p style="margin:0;color:#FFFFFF;font-size:20px;font-weight:700;letter-spacing:0.5px;">VCM FCI · UCM</p>
+              <p style="margin:4px 0 0;color:#A5B8E8;font-size:13px;">Vinculación con el Medio — Facultad de Ciencias de la Ingeniería</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 16px;color:#1F2937;font-size:15px;line-height:1.6;">Las siguientes iniciativas cumplieron <strong>${anios} años</strong> desde su cierre y serán <strong style="color:#EF4444;">eliminadas automáticamente a partir del ${escapar(eliminarDesde)}</strong>, junto con su planteamiento, proyecto y archivos adjuntos.</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:4px;margin:0 0 20px;">
+                <tr><th align="left" style="padding:8px 12px;background-color:#F4F6F8;color:#6B7280;font-size:12px;text-transform:uppercase;">Iniciativa</th><th align="left" style="padding:8px 12px;background-color:#F4F6F8;color:#6B7280;font-size:12px;text-transform:uppercase;">Cierre</th></tr>
+                ${filas}
+              </table>
+              <p style="margin:0 0 16px;color:#1F2937;font-size:15px;line-height:1.6;">Si necesitas conservar información para una acreditación, descarga los reportes y archivos antes de esa fecha.</p>
+              <p style="margin:0;color:#1F2937;font-size:15px;">Saludos cordiales,<br><strong>Equipo VCM FCI · UCM</strong></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#F4F6F8;padding:16px 32px;border-top:1px solid #E5E7EB;">
+              <p style="margin:0;color:#9CA3AF;font-size:12px;text-align:center;">Este es un correo automático, por favor no responder.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    const { error } = await this.resend.emails.send({ from: this.fromEmail, to, subject, html });
+    if (error) {
+      console.error('[MailService] Error al enviar aviso de depuración:', error);
+      return false;
+    }
+    return true;
+  }
 }

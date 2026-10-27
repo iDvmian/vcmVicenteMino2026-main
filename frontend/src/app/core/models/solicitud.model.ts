@@ -39,6 +39,8 @@ export interface Solicitud {
   tipoCliente?: TipoCliente | null;
   tipoClienteOtro?: string | null;
   origen?: OrigenSolicitud;
+  /** Si es posterior a la hora actual, el solicitante tiene la solicitud abierta en edición. */
+  editandoHasta?: string | null;
   nombreOrganizacion?: string | null;
   personasPrevistas?: number | null;
   carreraId?: number;

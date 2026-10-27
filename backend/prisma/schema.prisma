@@ -166,6 +166,10 @@ model Solicitud {
   archivos    ArchivoSolicitud[]
   planteamiento Planteamiento?
   historial   HistorialEtapa[]
+  /// Fecha en que se avisó que esta iniciativa será depurada por antigüedad (retención de 5 años)
+  avisoRetencionEn DateTime?
+  /// Mientras el solicitante tiene abierta la edición, hasta cuándo vale ese "editando" (se renueva cada ~30 s)
+  editandoHasta DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 }
@@ -271,4 +275,18 @@ model HistorialEtapa {
 
   @@index([solicitudId, fecha])
   @@index([etapa, fecha])
+}
+
+/// Registro de las iniciativas eliminadas automáticamente al cumplir el plazo de retención.
+/// No tiene relaciones: sobrevive al borrado de la solicitud y deja constancia de qué se eliminó y cuándo.
+model RegistroDepuracion {
+  id               Int      @id @default(autoincrement())
+  solicitudId      Int
+  titulo           String
+  estadoFinal      String
+  fechaCierre      DateTime
+  archivosBorrados Int      @default(0)
+  borradoEn        DateTime @default(now())
+
+  @@index([borradoEn])
 }

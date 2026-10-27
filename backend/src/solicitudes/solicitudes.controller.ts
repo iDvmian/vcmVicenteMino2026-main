@@ -123,6 +123,28 @@ export class SolicitudesController {
     return this.solicitudesService.update(id, dto, req.user);
   }
 
+  @Post(':id/editando')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'El solicitante avisa que está editando su solicitud (se renueva cada ~30 s)' })
+  @ApiOkResponse({ description: 'Marca renovada' })
+  marcarEdicion(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: CurrentUser },
+  ) {
+    return this.solicitudesService.marcarEdicion(id, req.user);
+  }
+
+  @Delete(':id/editando')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'El solicitante terminó de editar: libera la marca' })
+  @ApiOkResponse({ description: 'Marca liberada' })
+  liberarEdicion(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: CurrentUser },
+  ) {
+    return this.solicitudesService.liberarEdicion(id, req.user);
+  }
+
   @Patch(':id/gestionar')
   @Roles(Role.ADMIN, Role.GESTOR_VCM)
   @HttpCode(HttpStatus.OK)

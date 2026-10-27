@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -311,6 +312,7 @@ export class SolicitudesService {
         nombreOrganizacion: esIniciativaDocente ? dto.nombreOrganizacion?.trim() : undefined,
         personasPrevistas: esIniciativaDocente ? dto.personasPrevistas : undefined,
         carreraId: esIniciativaDocente ? undefined : dto.carreraId,
+        editandoHasta: null, // al guardar termina la edición
       },
       include: SOLICITUD_INCLUDE,
     });
@@ -318,9 +320,52 @@ export class SolicitudesService {
     return { data: updated, message: 'Solicitud actualizada', statusCode: 200 };
   }
 
+  /** Segundos que dura la marca de "editando" si el navegador deja de renovarla (pestaña cerrada, corte de red). */
+  private static readonly EDICION_TTL_MS = 90 * 1000;
+
+  /**
+   * El solicitante avisa que tiene la solicitud abierta en edición. Se renueva periódicamente desde
+   * el formulario; si deja de llegar, la marca expira sola y el evaluador puede continuar.
+   */
+  async marcarEdicion(id: number, currentUser: CurrentUser) {
+    const solicitud = await this.prisma.solicitud.findUnique({ where: { id } });
+    if (!solicitud) throw new NotFoundException(`Solicitud con id ${id} no encontrada`);
+    if (solicitud.clienteId !== currentUser.id) {
+      throw new ForbiddenException('Solo quien creó la solicitud puede marcarla como en edición');
+    }
+    if (solicitud.estado !== EstadoSolicitud.PENDIENTE) {
+      return { data: null, message: 'La solicitud ya no se puede editar', statusCode: 200 };
+    }
+    await this.prisma.solicitud.update({
+      where: { id },
+      // se conserva updatedAt: renovar la marca no es una modificación de la solicitud
+      data: { editandoHasta: new Date(Date.now() + SolicitudesService.EDICION_TTL_MS), updatedAt: solicitud.updatedAt },
+    });
+    return { data: null, message: 'Edición marcada', statusCode: 200 };
+  }
+
+  /** El solicitante cerró el formulario: se libera la marca de inmediato. */
+  async liberarEdicion(id: number, currentUser: CurrentUser) {
+    const solicitud = await this.prisma.solicitud.findUnique({ where: { id } });
+    if (!solicitud || solicitud.clienteId !== currentUser.id || !solicitud.editandoHasta) {
+      return { data: null, message: 'Sin cambios', statusCode: 200 };
+    }
+    await this.prisma.solicitud.update({
+      where: { id },
+      data: { editandoHasta: null, updatedAt: solicitud.updatedAt },
+    });
+    return { data: null, message: 'Edición liberada', statusCode: 200 };
+  }
+
   async gestionar(id: number, dto: GestionarSolicitudDto, usuarioId?: number) {
     const solicitud = await this.prisma.solicitud.findUnique({ where: { id } });
     if (!solicitud) throw new NotFoundException(`Solicitud con id ${id} no encontrada`);
+
+    if (solicitud.editandoHasta && solicitud.editandoHasta > new Date()) {
+      throw new ConflictException(
+        'El solicitante está editando esta solicitud en este momento. Espera a que termine e inténtalo de nuevo.',
+      );
+    }
 
     if (dto.carreraId !== undefined) {
       const carrera = await this.prisma.carrera.findUnique({ where: { id: dto.carreraId } });

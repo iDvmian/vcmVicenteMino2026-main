@@ -105,6 +105,15 @@ export class SolicitudesService {
       .pipe(map(r => r.data));
   }
 
+  /** Avisa que el solicitante tiene la solicitud abierta en edición (se renueva periódicamente). */
+  marcarEditando(id: number): Observable<void> {
+    return this.http.post<any>(`${this.apiUrl}/${id}/editando`, {}).pipe(map(() => undefined));
+  }
+
+  liberarEditando(id: number): Observable<void> {
+    return this.http.delete<any>(`${this.apiUrl}/${id}/editando`).pipe(map(() => undefined));
+  }
+
   gestionar(id: number, dto: GestionarSolicitudDto): Observable<Solicitud> {
     return this.http
       .patch<any>(`${this.apiUrl}/${id}/gestionar`, dto)
