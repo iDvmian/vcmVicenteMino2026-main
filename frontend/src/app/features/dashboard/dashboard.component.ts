@@ -145,6 +145,10 @@ export class DashboardComponent implements OnInit {
   chartCarrera: any;
   chartFacultad: any;
   chartComuna: any;
+  chartEmbudo: any;
+  chartTiempos: any;
+  chartRechazo: any;
+  chartHitos: any;
 
   readonly optsLinea = this.baseOptions(true);
   readonly optsDonut = {
@@ -320,6 +324,52 @@ export class DashboardComponent implements OnInit {
     this.chartComuna = {
       labels: d.porComuna.map((c) => c.comuna),
       datasets: [{ label: 'Solicitudes', data: d.porComuna.map((c) => c.solicitudes), backgroundColor: TEAL }],
+    };
+
+    this.armarSeguimiento(d);
+  }
+
+  /** Indicadores del seguimiento de cada fase (embudo, tiempos, rechazos e hitos por mes). */
+  private armarSeguimiento(d: Dashboard): void {
+    const s = d.seguimiento;
+    if (!s) return;
+
+    this.chartEmbudo = {
+      labels: s.embudo.map((p) => p.label),
+      datasets: [{
+        label: 'Iniciativas',
+        data: s.embudo.map((p) => p.cuenta),
+        backgroundColor: [CELESTE, TEAL, AMARILLO, VERDE, AZUL, '#0F766E'],
+      }],
+    };
+
+    this.chartTiempos = {
+      labels: s.tiempos.map((t) => `${t.label} (${t.casos} casos)`),
+      datasets: [{
+        label: 'Días promedio',
+        data: s.tiempos.map((t) => t.promedioDias ?? 0),
+        backgroundColor: [CELESTE, TEAL, AMARILLO, VERDE, AZUL, GRIS],
+      }],
+    };
+
+    this.chartRechazo = {
+      labels: ['Solicitudes', 'Planteamientos'],
+      datasets: [{
+        label: '% de rechazo',
+        data: [s.rechazos.solicitud.pctRechazo, s.rechazos.planteamiento.pctRechazo],
+        backgroundColor: [ROJO, AMARILLO],
+      }],
+    };
+
+    this.chartHitos = {
+      labels: s.hitosPorMes.map((m) => this.mesLabel(m.mes)),
+      datasets: [
+        { label: 'Solicitudes recibidas', data: s.hitosPorMes.map((m) => m.solicitudes), borderColor: CELESTE, backgroundColor: CELESTE, tension: 0.3 },
+        { label: 'Solicitudes aprobadas', data: s.hitosPorMes.map((m) => m.solicitudesAprobadas), borderColor: TEAL, backgroundColor: TEAL, tension: 0.3 },
+        { label: 'Planteamientos aprobados', data: s.hitosPorMes.map((m) => m.planteamientosAprobados), borderColor: AMARILLO, backgroundColor: AMARILLO, tension: 0.3 },
+        { label: 'Proyectos creados', data: s.hitosPorMes.map((m) => m.proyectosCreados), borderColor: AZUL, backgroundColor: AZUL, tension: 0.3 },
+        { label: 'Proyectos finalizados', data: s.hitosPorMes.map((m) => m.proyectosFinalizados), borderColor: VERDE, backgroundColor: VERDE, tension: 0.3 },
+      ],
     };
   }
 

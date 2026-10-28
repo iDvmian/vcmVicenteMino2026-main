@@ -229,6 +229,72 @@
           </article>
         </section>
 
+        <!-- Seguimiento de cada fase -->
+        <ng-container *ngIf="d.seguimiento as seg">
+          <h2 class="seccion">Seguimiento de cada fase</h2>
+          <p class="seccion__hint">
+            Recorrido de las solicitudes del período por cada fase: cuántas avanzan, cuánto demoran y dónde se detienen.
+          </p>
+          <section class="charts">
+            <article class="chart-card chart-card--wide">
+              <h2 class="chart-card__title">Embudo de la iniciativa</h2>
+              <div class="chart-card__body"><p-chart type="bar" [data]="chartEmbudo" [options]="optsBarraH" /></div>
+              <div class="embudo">
+                <span *ngFor="let p of seg.embudo; let i = index" class="embudo__item">
+                  {{ p.label }}: <strong>{{ p.pctDelTotal }}%</strong>
+                  <ng-container *ngIf="i > 0"> del total · {{ p.pctDelPaso }}% del paso anterior</ng-container>
+                </span>
+              </div>
+            </article>
+            <article class="chart-card">
+              <h2 class="chart-card__title">Tiempo promedio por fase (días)</h2>
+              <div class="chart-card__body"><p-chart type="bar" [data]="chartTiempos" [options]="optsBarraH" /></div>
+              <p class="seccion__hint">Solo incluye hitos con fecha registrada; los reconstruidos se omiten.</p>
+            </article>
+            <article class="chart-card">
+              <h2 class="chart-card__title">Rechazo por etapa (%)</h2>
+              <div class="chart-card__body"><p-chart type="bar" [data]="chartRechazo" [options]="optsBarra" /></div>
+              <p class="seccion__hint">
+                Solicitudes: {{ seg.rechazos.solicitud.rechazadas }} de {{ seg.rechazos.solicitud.evaluadas }} evaluadas.
+                Planteamientos: {{ seg.rechazos.planteamiento.rechazados }} de {{ seg.rechazos.planteamiento.evaluados }} evaluados
+                ({{ seg.rechazos.planteamiento.reenviados }} reenviados).
+              </p>
+            </article>
+            <article class="chart-card chart-card--wide">
+              <h2 class="chart-card__title">Hitos por mes</h2>
+              <div class="chart-card__body"><p-chart type="line" [data]="chartHitos" [options]="optsLinea" /></div>
+            </article>
+          </section>
+
+          <section class="tables">
+            <article class="table-card">
+              <h2 class="chart-card__title">
+                Iniciativas detenidas (más de {{ seg.cuellosDeBotella.umbralDias }} días)
+                <span class="cuello__total">{{ seg.cuellosDeBotella.total }}</span>
+              </h2>
+              <div class="cuello__chips" *ngIf="seg.cuellosDeBotella.porEtapa.length">
+                <span class="cuello__chip" *ngFor="let e of seg.cuellosDeBotella.porEtapa">
+                  {{ e.etapa }}: <strong>{{ e.cantidad }}</strong>
+                </span>
+              </div>
+              <table class="rank">
+                <thead><tr><th>Iniciativa</th><th>Carrera</th><th>Etapa actual</th><th>Días</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let x of seg.cuellosDeBotella.items">
+                    <td>{{ x.titulo }}</td><td>{{ x.carrera }}</td><td>{{ x.etapa }}</td><td>{{ x.dias }}</td>
+                  </tr>
+                  <tr *ngIf="!seg.cuellosDeBotella.items.length">
+                    <td colspan="4" class="rank__empty">No hay iniciativas detenidas.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="seccion__hint" *ngIf="seg.cuellosDeBotella.total > seg.cuellosDeBotella.items.length">
+                Se muestran las {{ seg.cuellosDeBotella.items.length }} más antiguas.
+              </p>
+            </article>
+          </section>
+        </ng-container>
+
         <!-- Rankings -->
         <section class="tables">
           <article class="table-card">

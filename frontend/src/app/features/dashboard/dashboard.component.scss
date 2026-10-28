@@ -350,3 +350,46 @@
 .rank--click tbody tr { cursor: pointer; }
 .rank--click tbody tr:hover { background: #f3f6fb; }
 .rank--click tbody tr.rank__sel { background: #e3ecfb; font-weight: 600; }
+
+// ── Seguimiento de cada fase ────────────────────────────────
+.seccion {
+  margin: 28px 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ucm-azul);
+}
+.seccion__hint { margin: 4px 0 10px; font-size: 12px; color: var(--ucm-muted); }
+
+.embudo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ucm-muted);
+
+  strong { color: var(--ucm-texto); }
+}
+
+.cuello {
+  &__total {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 10px;
+    border-radius: 999px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--ucm-danger);
+    font-size: 13px;
+  }
+  &__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  &__chip {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--ucm-bg);
+    border: 1px solid var(--ucm-borde);
+    font-size: 12px;
+    color: var(--ucm-muted);
+
+    strong { color: var(--ucm-texto); }
+  }
+}

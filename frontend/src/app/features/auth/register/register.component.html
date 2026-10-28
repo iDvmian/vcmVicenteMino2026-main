@@ -13,7 +13,11 @@
           <label>RUT</label>
           <input pInputText formControlName="rut" placeholder="12345678-9" />
           @if (form.get('rut')!.touched && form.get('rut')!.invalid) {
-            <span class="error">El RUT es obligatorio.</span>
+            @if (form.get('rut')!.hasError('required')) {
+              <span class="error">El RUT es obligatorio.</span>
+            } @else {
+              <span class="error">RUT inválido: revisa el número y el dígito verificador (ej: 12345678-9).</span>
+            }
           }
         </div>
       </div>

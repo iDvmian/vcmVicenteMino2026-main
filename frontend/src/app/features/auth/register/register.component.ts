@@ -7,6 +7,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../../core/services/auth.service';
+import { rutValidator } from '../../../core/utils/rut.validator';
 
 @Component({
   selector: 'app-register',
@@ -27,7 +28,7 @@ export class RegisterComponent {
     private messageService: MessageService
   ) {
     this.form = this.fb.group({
-      rut:       ['', Validators.required],
+      rut:       ['', [Validators.required, rutValidator]],
       nombres:   ['', Validators.required],
       apellidos: ['', Validators.required],
       email:     ['', [Validators.required, Validators.email]],

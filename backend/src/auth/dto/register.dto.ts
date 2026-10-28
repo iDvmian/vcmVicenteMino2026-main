@@ -6,16 +6,16 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  Matches,
   MinLength,
 } from 'class-validator';
 import { Role } from '@prisma/client';
+import { IsRut } from '../../common/validators/is-rut.validator';
 
 export class RegisterDto {
   @ApiProperty({ example: '12345678-9' })
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\d{1,8}-[\dkK]$/, { message: 'RUT inválido (ej: 12345678-9)' })
+  @IsRut({ message: 'RUT inválido (ej: 12345678-9)' })
   rut: string;
 
   @ApiProperty({ example: 'Juan' })

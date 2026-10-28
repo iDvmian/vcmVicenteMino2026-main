@@ -33,6 +33,45 @@ export interface FacultadComparada {
   tasaConversion: number;
 }
 
+export interface SeguimientoPaso {
+  etapa: string;
+  label: string;
+  cuenta: number;
+  pctDelTotal: number;
+  pctDelPaso: number;
+}
+
+export interface SeguimientoTiempo {
+  clave: string;
+  label: string;
+  promedioDias: number | null;
+  casos: number;
+  omitidosAproximados: number;
+}
+
+export interface Seguimiento {
+  embudo: SeguimientoPaso[];
+  tiempos: SeguimientoTiempo[];
+  rechazos: {
+    solicitud: { evaluadas: number; rechazadas: number; pctRechazo: number };
+    planteamiento: { evaluados: number; rechazados: number; reenviados: number; pctRechazo: number };
+  };
+  hitosPorMes: {
+    mes: string;
+    solicitudes: number;
+    solicitudesAprobadas: number;
+    planteamientosAprobados: number;
+    proyectosCreados: number;
+    proyectosFinalizados: number;
+  }[];
+  cuellosDeBotella: {
+    umbralDias: number;
+    total: number;
+    porEtapa: { etapa: string; cantidad: number }[];
+    items: { solicitudId: number; titulo: string; carrera: string; etapa: string; dias: number }[];
+  };
+}
+
 export interface Dashboard {
   resumen: DashboardResumen;
   porFacultad: FacultadComparada[];
@@ -42,6 +81,7 @@ export interface Dashboard {
   porComuna: { comuna: string; solicitudes: number }[];
   rankingDocentes: { docente: string; planteamientos: number; aprobados: number; proyectos: number; horasHombre: number }[];
   rankingAlumnos: { alumno: string; proyectos: number }[];
+  seguimiento?: Seguimiento;
 }
 
 export interface DashboardFiltros {

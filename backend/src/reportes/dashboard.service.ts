@@ -9,6 +9,9 @@ const DIA_MS = 24 * 60 * 60 * 1000;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const pct = (parte: number, total: number) => (total > 0 ? round1((parte / total) * 100) : 0);
+/** Días sin avance a partir de los cuales una iniciativa se considera detenida ("cuello de botella"). */
+const UMBRAL_CUELLO_DIAS = 30;
+
 const mesKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 @Injectable()
@@ -278,8 +281,179 @@ export class DashboardService {
       porComuna,
       rankingDocentes,
       rankingAlumnos,
+      seguimiento: await this.calcularSeguimiento(solicitudes),
     };
 
     return { data, message: 'Dashboard obtenido exitosamente', statusCode: 200 };
+  }
+
+  /**
+   * Indicadores del seguimiento de cada fase, calculados a partir de HistorialEtapa
+   * para las solicitudes ya filtradas (mismo período, facultad, carrera y alcance por rol).
+   * Los hitos "aproximados" (reconstruidos) cuentan en las cantidades, pero no en los tiempos.
+   */
+  private async calcularSeguimiento(
+    solicitudes: {
+      id: number;
+      titulo: string;
+      estado: string;
+      createdAt: Date;
+      updatedAt: Date;
+      carrera: { nombre: string } | null;
+      planteamiento: { estado: string; proyecto: { estado: string } | null } | null;
+    }[],
+  ) {
+    const ids = solicitudes.map((s) => s.id);
+    const eventos = ids.length
+      ? await this.prisma.historialEtapa.findMany({
+          where: { solicitudId: { in: ids } },
+          select: { solicitudId: true, etapa: true, fecha: true, aproximado: true },
+          orderBy: { fecha: 'asc' },
+        })
+      : [];
+
+    type Hito = { primera: Date; ultima: Date; aproximado: boolean; veces: number };
+    const porSol = new Map<number, Map<string, Hito>>();
+    for (const e of eventos) {
+      const m = porSol.get(e.solicitudId) ?? new Map<string, Hito>();
+      const h = m.get(e.etapa);
+      if (!h) m.set(e.etapa, { primera: e.fecha, ultima: e.fecha, aproximado: e.aproximado, veces: 1 });
+      else {
+        h.ultima = e.fecha;
+        h.veces++;
+        h.aproximado = h.aproximado && e.aproximado;
+      }
+      porSol.set(e.solicitudId, m);
+    }
+    const tiene = (id: number, ...etapas: string[]) => etapas.some((et) => porSol.get(id)?.has(et));
+
+    // ── Embudo ───────────────────────────────────────────────────────────────
+    const total = solicitudes.length;
+    const pasos = [
+      { etapa: 'SOLICITUD_CREADA', label: 'Solicitudes recibidas', cuenta: total },
+      { etapa: 'SOLICITUD_APROBADA', label: 'Solicitudes aprobadas', cuenta: solicitudes.filter((s) => tiene(s.id, 'SOLICITUD_APROBADA')).length },
+      { etapa: 'PLANTEAMIENTO_CREADO', label: 'Con planteamiento', cuenta: solicitudes.filter((s) => tiene(s.id, 'PLANTEAMIENTO_CREADO')).length },
+      { etapa: 'PLANTEAMIENTO_APROBADO', label: 'Planteamiento aprobado', cuenta: solicitudes.filter((s) => tiene(s.id, 'PLANTEAMIENTO_APROBADO')).length },
+      { etapa: 'PROYECTO_CREADO', label: 'Proyecto creado', cuenta: solicitudes.filter((s) => tiene(s.id, 'PROYECTO_CREADO')).length },
+      { etapa: 'PROYECTO_FINALIZADO', label: 'Proyecto finalizado', cuenta: solicitudes.filter((s) => tiene(s.id, 'PROYECTO_FINALIZADO')).length },
+    ];
+    const embudo = pasos.map((p, i) => ({
+      ...p,
+      pctDelTotal: pct(p.cuenta, total),
+      pctDelPaso: i === 0 ? 100 : pct(p.cuenta, pasos[i - 1].cuenta),
+    }));
+
+    // ── Tiempo promedio por fase ─────────────────────────────────────────────
+    const primeraDe = (id: number, ...etapas: string[]) => {
+      const hs = etapas.map((e) => porSol.get(id)?.get(e)).filter((h): h is Hito => !!h);
+      if (!hs.length) return null;
+      return hs.reduce((a, b) => (a.primera <= b.primera ? a : b));
+    };
+    const fases: { clave: string; label: string; desde: string[]; hasta: string[] }[] = [
+      { clave: 'evaluacion_solicitud', label: 'Evaluación de la solicitud', desde: ['SOLICITUD_CREADA'], hasta: ['SOLICITUD_APROBADA', 'SOLICITUD_RECHAZADA'] },
+      { clave: 'espera_planteamiento', label: 'Espera del planteamiento', desde: ['SOLICITUD_APROBADA'], hasta: ['PLANTEAMIENTO_CREADO'] },
+      { clave: 'evaluacion_planteamiento', label: 'Evaluación del planteamiento', desde: ['PLANTEAMIENTO_CREADO'], hasta: ['PLANTEAMIENTO_APROBADO', 'PLANTEAMIENTO_RECHAZADO'] },
+      { clave: 'inicio_proyecto', label: 'Inicio del proyecto', desde: ['PLANTEAMIENTO_APROBADO'], hasta: ['PROYECTO_CREADO'] },
+      { clave: 'ejecucion_proyecto', label: 'Ejecución del proyecto', desde: ['PROYECTO_CREADO'], hasta: ['PROYECTO_FINALIZADO', 'PROYECTO_CANCELADO'] },
+      { clave: 'ciclo_completo', label: 'Ciclo completo (solicitud a proyecto finalizado)', desde: ['SOLICITUD_CREADA'], hasta: ['PROYECTO_FINALIZADO'] },
+    ];
+    const tiempos = fases.map((f) => {
+      let suma = 0;
+      let n = 0;
+      let omitidos = 0;
+      for (const s of solicitudes) {
+        const a = primeraDe(s.id, ...f.desde);
+        const b = primeraDe(s.id, ...f.hasta);
+        if (!a || !b) continue;
+        if (a.aproximado || b.aproximado) { omitidos++; continue; }
+        const ms = b.primera.getTime() - a.primera.getTime();
+        if (ms < 0) continue;
+        suma += ms;
+        n++;
+      }
+      return { clave: f.clave, label: f.label, promedioDias: n ? round1(suma / n / DIA_MS) : null, casos: n, omitidosAproximados: omitidos };
+    });
+
+    // ── Rechazos por etapa ───────────────────────────────────────────────────
+    const solEvaluadas = solicitudes.filter((s) => tiene(s.id, 'SOLICITUD_APROBADA', 'SOLICITUD_RECHAZADA')).length;
+    const solRechazadas = solicitudes.filter((s) => tiene(s.id, 'SOLICITUD_RECHAZADA')).length;
+    const plaEvaluados = solicitudes.filter((s) => tiene(s.id, 'PLANTEAMIENTO_APROBADO', 'PLANTEAMIENTO_RECHAZADO')).length;
+    const plaRechazados = solicitudes.filter((s) => tiene(s.id, 'PLANTEAMIENTO_RECHAZADO')).length;
+    const plaReenviados = solicitudes.filter((s) => tiene(s.id, 'PLANTEAMIENTO_REENVIADO')).length;
+    const rechazos = {
+      solicitud: { evaluadas: solEvaluadas, rechazadas: solRechazadas, pctRechazo: pct(solRechazadas, solEvaluadas) },
+      planteamiento: {
+        evaluados: plaEvaluados,
+        rechazados: plaRechazados,
+        reenviados: plaReenviados,
+        pctRechazo: pct(plaRechazados, plaEvaluados),
+      },
+    };
+
+    // ── Hitos por mes ────────────────────────────────────────────────────────
+    const columnas: Record<string, string> = {
+      SOLICITUD_CREADA: 'solicitudes',
+      SOLICITUD_APROBADA: 'solicitudesAprobadas',
+      PLANTEAMIENTO_APROBADO: 'planteamientosAprobados',
+      PROYECTO_CREADO: 'proyectosCreados',
+      PROYECTO_FINALIZADO: 'proyectosFinalizados',
+    };
+    const mesesHitos = new Map<string, Record<string, number>>();
+    for (const e of eventos) {
+      const col = columnas[e.etapa];
+      if (!col) continue;
+      const k = mesKey(e.fecha);
+      const fila = mesesHitos.get(k) ?? { solicitudes: 0, solicitudesAprobadas: 0, planteamientosAprobados: 0, proyectosCreados: 0, proyectosFinalizados: 0 };
+      fila[col]++;
+      mesesHitos.set(k, fila);
+    }
+    const hitosPorMes = [...mesesHitos.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([mes, v]) => ({ mes, ...v }));
+
+    // ── Cuellos de botella: iniciativas detenidas en su etapa actual ─────────
+    const ahora = Date.now();
+    const detenidas: { solicitudId: number; titulo: string; carrera: string; etapa: string; dias: number }[] = [];
+    for (const s of solicitudes) {
+      const pl = s.planteamiento;
+      let etapa: string | null = null;
+      let desde: Date | null = null;
+      const fechaDe = (et: string, usar: 'primera' | 'ultima' = 'ultima') => porSol.get(s.id)?.get(et)?.[usar] ?? null;
+      if (s.estado === 'PENDIENTE') {
+        etapa = 'Solicitud pendiente de evaluación';
+        desde = fechaDe('SOLICITUD_CREADA') ?? s.createdAt;
+      } else if (s.estado === 'APROBADA' && !pl) {
+        etapa = 'Esperando el planteamiento';
+        desde = fechaDe('SOLICITUD_APROBADA') ?? s.updatedAt;
+      } else if (pl?.estado === 'PENDIENTE') {
+        etapa = 'Planteamiento pendiente de evaluación';
+        desde = fechaDe('PLANTEAMIENTO_REENVIADO') ?? fechaDe('PLANTEAMIENTO_CREADO') ?? s.updatedAt;
+      } else if (pl?.estado === 'RECHAZADO') {
+        etapa = 'Planteamiento rechazado sin reenviar';
+        desde = fechaDe('PLANTEAMIENTO_RECHAZADO') ?? s.updatedAt;
+      } else if (pl?.estado === 'APROBADO' && !pl.proyecto) {
+        etapa = 'Esperando la creación del proyecto';
+        desde = fechaDe('PLANTEAMIENTO_APROBADO') ?? s.updatedAt;
+      } else if (pl?.proyecto?.estado === 'PAUSADO') {
+        etapa = 'Proyecto pausado';
+        desde = fechaDe('PROYECTO_PAUSADO') ?? s.updatedAt;
+      }
+      if (!etapa || !desde) continue;
+      const dias = Math.floor((ahora - desde.getTime()) / DIA_MS);
+      if (dias >= UMBRAL_CUELLO_DIAS) {
+        detenidas.push({ solicitudId: s.id, titulo: s.titulo, carrera: s.carrera?.nombre ?? 'Sin carrera', etapa, dias });
+      }
+    }
+    detenidas.sort((a, b) => b.dias - a.dias);
+    const porEtapa = new Map<string, number>();
+    for (const d of detenidas) porEtapa.set(d.etapa, (porEtapa.get(d.etapa) ?? 0) + 1);
+    const cuellosDeBotella = {
+      umbralDias: UMBRAL_CUELLO_DIAS,
+      total: detenidas.length,
+      porEtapa: [...porEtapa.entries()].map(([etapa, cantidad]) => ({ etapa, cantidad })).sort((a, b) => b.cantidad - a.cantidad),
+      items: detenidas.slice(0, 15),
+    };
+
+    return { embudo, tiempos, rechazos, hitosPorMes, cuellosDeBotella };
   }
 }
